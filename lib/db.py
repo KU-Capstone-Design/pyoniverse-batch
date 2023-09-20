@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from abc import ABCMeta, abstractmethod
@@ -57,14 +58,15 @@ class MongoRepository(Repository):
     def find_all(cls, *args, **kwargs) -> List[dict]:
         """
         collection: str
-        hint: [(id, 1)] 형식
         filter: dict
         projection: dict
         """
         collection = args[0]
-        hint = kwargs.get("hint", None)
         filter = kwargs.get("filter", {})
         projection = kwargs.get("projection", {})
+
+        hint = json.loads(os.getenv("MONGO_READ_HINT"))
+        hint = [(k, v) for k, v in hint.items()]
 
         if projection:
             projection["_id"] = True
@@ -101,15 +103,14 @@ class MongoRepository(Repository):
         :param data: List[dict]
         :param filters: List[dict]
         :param kwargs:
-        hint: [(id, 1)] 형식
         :return:
         """
-        # TODO : ID AUTO INCREMENT - Atlas 에서 지원하는 방식으로 처리하기
+        hint = json.loads(os.getenv("MONGO_WRITE_HINT"))
+        hint = [(k, v) for k, v in hint.items()]
+
         buffer = []
         for d, f in zip(data, filters):
-            buffer.append(
-                UpdateOne(f, {"$set": d}, upsert=True, hint=kwargs.get("hint", None))
-            )
+            buffer.append(UpdateOne(f, {"$set": d}, upsert=True, hint=hint))
 
         matched_count, modified_count, inserted_count = 0, 0, 0
         for idx in range(0, len(buffer), 1000):

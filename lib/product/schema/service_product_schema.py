@@ -1,5 +1,7 @@
 from marshmallow import Schema, fields
 
+from lib.common.schema import CrawledInfoSchema
+
 
 class ServiceProductPriceSchema(Schema):
     value = fields.Float(required=True)
@@ -19,13 +21,14 @@ class ProductRecommendationSchema(Schema):
 
 
 class ServiceProductSchema(Schema):
-    id = fields.Integer(required=True)
+    # id = fields.Integer(required=True) - Atlas 에서 자동 생성
     status = fields.Integer(required=True)
-    created_at = fields.Integer(required=True)
-    updated_at = fields.Integer(required=True)
+    # created_at = fields.Integer(required=True) - Atlas 에서 자동 생성
+    # updated_at = fields.Integer(required=True) - Atlas 에서 자동 생성
     name = fields.String(required=True)
     category = fields.Integer(required=True)
     description = fields.String(required=True, allow_none=True)
     brands = fields.Nested(ProductBrandSchema, many=True, required=True)
     recommendation = fields.Nested(ProductRecommendationSchema, required=True)
     image = fields.URL(required=True)
+    crawled_infos = fields.Nested(CrawledInfoSchema, many=True, required=True)

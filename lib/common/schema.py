@@ -1,5 +1,4 @@
 from marshmallow import EXCLUDE, Schema, fields
-from marshmallow.validate import Regexp
 
 
 class CrawledInfoSchema(Schema):
@@ -13,13 +12,11 @@ class CrawledInfoSchema(Schema):
 
 
 class ImageSchema(Schema):
-    thumb = fields.String(
-        required=True, allow_none=True, validate=Regexp(r"^s3?://.*\.webp$")
+    thumb = fields.URL(
+        required=True, allow_none=True, schemes=["s3"], require_tld=False
     )
     others = fields.List(
-        fields.String(
-            required=True, allow_none=True, validate=Regexp(r"^s3?://.*\.webp$")
-        ),
+        fields.URL(required=True, schemes=["s3"], require_tld=False),
         required=True,
     )
 
