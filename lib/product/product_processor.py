@@ -1,16 +1,13 @@
-import json
 import logging
 import os
 import re
 from collections import Counter
 from typing import List, Type
 
-import boto3
 import pandas as pd
-from boto3_type_annotations.s3 import Client
 from pandas import DataFrame, Series
 
-from lib.common.util import convert_brand, convert_category
+from lib.common.util import convert_category
 from lib.db import Repository, RepositoryFactory
 from lib.product.schema.crawled_product_schema import CrawledProductSchema
 
@@ -92,6 +89,8 @@ class ProductProcessor:
             metric = t.group(3)
             x = p.sub("", x)
             x = re.sub(r"(\(\s*\)|\s*\}|\s*\])", "", x)
+            # remove unclosed parenthesis
+            x = re.sub(r"^\)", "", x)
             x = f"{x}({digit}{metric})"
         x = re.sub(r"\s+", " ", x).strip()
         return x
@@ -108,7 +107,6 @@ class ProductProcessor:
                 "price": list,
                 "category": list,
                 "tags": "sum",
-                "discounted_price": list,
             }
         )
         for column in df.columns:
@@ -148,33 +146,15 @@ class ProductProcessor:
     @classmethod
     def __get_largest_image(cls, images: List[dict]):
         max_img = None
-        max_size = None
 
-        s3client: Client = boto3.client("s3")
         images = DataFrame(images)
         images.dropna(subset=["thumb"], inplace=True)
-        max_img = images["thumb"].iloc[0] if len(images) > 0 else None
-
-        # for img in images:
-        # TODO : S3 aioboto 로 처리하기
-        # if img["thumb"]:
-        #     meta = s3client.head_object(Bucket="pyoniverse-image",
-        #                                 Key=img["thumb"].split("s3://pyoniverse-image/")[-1])
-        #     height = meta["ResponseMetadata"]["HTTPHeaders"]["x-amz-meta-height"]
-        #     width = meta["ResponseMetadata"]["HTTPHeaders"]["x-amz-meta-width"]
-        #     size = int(height) * int(width)
-        #     if max_size is None or size > max_size:
-        #         max_size = size
-        #         max_img = img["thumb"]
-        # for other in img["others"]:
-        #     meta = s3client.head_object(Bucket="pyoniverse-image",
-        #                                 Key=other.split("s3://pyoniverse-image/")[-1])
-        #     height = meta["ResponseMetadata"]["HTTPHeaders"]["x-amz-meta-height"]
-        #     width = meta["ResponseMetadata"]["HTTPHeaders"]["x-amz-meta-width"]
-        #     size = int(height) * int(width)
-        #     if max_size is None or size > max_size:
-        #         max_size = size
-        #         max_img = other
+        images["thumb_size"] = images["size"].map(
+            lambda x: x["thumb"]["width"] * x["thumb"]["height"] if "thumb" in x else 0
+        )
+        images.sort_values(by="thumb_size", ascending=False, inplace=True)
+        max_img = images.iloc[0]["thumb"] if len(images) > 0 else None
+        # TODO : Thumbnail Image 이외의 나머지 이미지 처리
         return max_img
 
     @classmethod
@@ -544,37 +524,15 @@ class ProductProcessor:
 
     @classmethod
     def __collect_by_brand(cls, row: Series):
-        # TODO : 1. 브랜드 별 가격, 할인 가격, 이벤트 찾기
         brands = []
         for idx, crawled_info in enumerate(row["crawled_info"]):
-            # TODO : Spider 수정 - Crawled info
-            if "gs25" in crawled_info["spider"]:
-                brand = "GS25"
-            elif "cu" in crawled_info["spider"]:
-                brand = "CU"
-            elif "seven" in crawled_info["spider"]:
-                brand = "Seven Eleven"
-            elif "cspace" in crawled_info["spider"]:
-                brand = "Cspace"
-            elif "emart24" in crawled_info["spider"]:
-                brand = "Emart24"
-            else:
-                cls.logger.error(f"Unknown brand: {crawled_info['spider']}")
-                continue
-
-            brand_id = convert_brand(brand)
+            brand_id = crawled_info["brand"]
             price = row["price"][idx]
-            # TODO : Spider 수정 - discounted price 를 Price 안에 넣어야 한다
-            discounted_price = None
             brand_events = [e["id"] for e in row["events"] if e["brand"] == brand_id]
             brands.append(
                 {
                     "id": brand_id,
-                    "price": {
-                        "value": price["value"],
-                        "currency": price["currency"],
-                        "discounted_value": discounted_price,
-                    },
+                    "price": price,
                     "events": brand_events,
                 }
             )

@@ -48,6 +48,13 @@ def data():
 
 
 @pytest.fixture
+def data_merged():
+    with open("test/test_product_data_merged.json", "r") as f:
+        data = json.load(f)
+    return data
+
+
+@pytest.fixture
 def data_post_merged():
     with open("test/post_merged_product.json", "r") as f:
         data = json.load(f)
@@ -65,12 +72,14 @@ def data_converted():
 def images():
     return [
         {
-            "thumb": "s3://pyoniverse-image/products/00048b1d6712f5f3361376c384c53399fb892738.webp",
+            "thumb": "s3://pyoniverse-image/products/e6058ff491f13e4eb9f0162f975c5f8f5b3d37c1.webp",
             "others": [],
+            "size": {"thumb": {"width": 360, "height": 360}},
         },
         {
-            "thumb": "s3://pyoniverse-image/products/0023d2a56b6811336d2191a1893623a514c2c144.webp",
+            "thumb": "s3://pyoniverse-image/products/f0131bbf450abd362e61e1284420e51b2e958285.webp",
             "others": [],
+            "size": {"thumb": {"width": 360, "height": 374}},
         },
     ]
 
@@ -95,11 +104,11 @@ def test_product_processor_start(env, mongo_repository, logger):
 
     data = ProductProcessor.test_start(mongo_repository)
     logger.info(f"Data: {len(data)}")
-    # df = DataFrame(data)
-    # df.drop(columns=["_id"], inplace=True)
-    # data = df.to_dict(orient="records")
-    # with open("test_product_data.json", "w") as f:
-    #     json.dump(data, f, ensure_ascii=False, indent=4)
+    df = DataFrame(data)
+    df.drop(columns=["_id"], inplace=True)
+    data = df.to_dict(orient="records")
+    with open("test/test_product_data.json", "w") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
     assert len(data) > 0
 
 
@@ -109,7 +118,7 @@ def test_product_processor_normalize(env, data, logger):
     df = DataFrame(data)
     df = ProductProcessor.test_normalize(df)
     logger.info(df.head())
-    with open("test_product_data_normalized.json", "w") as f:
+    with open("test/test_product_data_normalized.json", "w") as f:
         json.dump(df.to_dict(orient="records"), f, ensure_ascii=False, indent=4)
     assert df["name"].isna().sum() == 0
 
@@ -121,6 +130,8 @@ def test_product_processor_merge(env, data, logger):
     df = ProductProcessor.test_normalize(df)
     df = ProductProcessor.test_merge(df)
     logger.info(df.head())
+    with open("test/test_product_data_merged.json", "w") as f:
+        json.dump(df.to_dict(orient="records"), f, ensure_ascii=False, indent=4)
     assert len(df) > 0
 
 
@@ -131,7 +142,7 @@ def test_product_processor_get_largest_img(env, images, logger):
 
     assert (
         res
-        == "s3://pyoniverse-image/products/00048b1d6712f5f3361376c384c53399fb892738.webp"
+        == "s3://pyoniverse-image/products/f0131bbf450abd362e61e1284420e51b2e958285.webp"
     )
 
 
@@ -152,6 +163,7 @@ def test_product_processor_collect_by_brand(env, data, logger):
     df = ProductProcessor.test_normalize(df)
     df = ProductProcessor.test_merge(df)
     res = ProductProcessor.test_collect_by_brand(df.iloc[0])
+    logger.info(res)
     assert res is not None
 
 
@@ -165,7 +177,7 @@ def test_product_processor_post_merge(env, mongo_repository, logger):
     df = ProductProcessor.test_merge(df)
     df = ProductProcessor.test_post_merge(df)
     logger.info(df.head())
-    with open("post_merged_product.json", "w") as fd:
+    with open("test/post_merged_product.json", "w") as fd:
         json.dump(df.to_dict(orient="records"), fd, ensure_ascii=False, indent=4)
     assert len(df) > 0
 
@@ -175,7 +187,7 @@ def test_product_processor_convert(env, data_post_merged, logger):
 
     df = DataFrame(data_post_merged)
     df = ProductProcessor.test_convert(df)
-    with open("data_converted.json", "w") as fd:
+    with open("test/data_converted.json", "w") as fd:
         json.dump(df.to_dict(orient="records"), fd, ensure_ascii=False, indent=4)
     assert len(df) > 0
 
@@ -185,3 +197,9 @@ def test_product_processor_end(env, data_converted, mongo_repository, logger):
 
     df = DataFrame(data_converted)
     df = ProductProcessor.test_end(df, mongo_repository)
+
+
+def test_product_processor(env):
+    from lib.product.product_processor import ProductProcessor
+
+    ProductProcessor.run(stage="test")
