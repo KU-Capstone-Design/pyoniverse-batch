@@ -37,8 +37,6 @@ class ProductProcessor:
         errors = CrawledProductSchema().validate(data=data, many=True)
         for error, reason in errors.items():
             cls.logger.info(f"Error: {error} - {reason}")
-            cls.logger.info(f"path: {data[error]['image']['thumb']}")
-            # del data[error]
         cls.logger.info(f"Error: {len(errors)}")
         res = []
         for idx, d in enumerate(data):

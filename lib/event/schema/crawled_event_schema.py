@@ -1,4 +1,4 @@
-from marshmallow import Schema, fields
+from marshmallow import EXCLUDE, Schema, fields
 
 from lib.common.schema import CrawledInfoSchema, ImageSchema
 
@@ -11,3 +11,7 @@ class CrawledBrandEventSchema(Schema):
     name = fields.String(required=True)
     image = fields.Nested(ImageSchema, required=True)
     description = fields.String(required=True, allow_none=True)
+
+    class Meta:
+        order = True
+        unknown = EXCLUDE

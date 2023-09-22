@@ -13,4 +13,4 @@ class ServiceBrandEventSchema(Schema):
     brand = fields.Integer(required=True)
     image = fields.Nested(ImageSchema, required=True)
     description = fields.String(required=True, allow_none=True)
-    crawled_info = fields.Nested(CrawledInfoSchema, required=True, many=True)
+    crawled_infos = fields.Nested(CrawledInfoSchema, required=True, many=True)

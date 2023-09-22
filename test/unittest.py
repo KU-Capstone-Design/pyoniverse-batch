@@ -203,3 +203,16 @@ def test_product_processor(env):
     from lib.product.product_processor import ProductProcessor
 
     ProductProcessor.run(stage="test")
+
+
+def test_event_processor_start(env, mongo_repository, logger):
+    from lib.event.event_processor import EventProcessor
+
+    res = EventProcessor.test_start(mongo_repository)
+    assert len(res) > 0
+
+
+def test_event_processor(env):
+    from lib.event.event_processor import EventProcessor
+
+    EventProcessor.run(stage="test")
