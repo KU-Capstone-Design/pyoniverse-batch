@@ -3,6 +3,7 @@ import os
 import re
 from collections import Counter
 from typing import List, Type
+from urllib.parse import urlparse
 
 import pandas as pd
 from pandas import DataFrame, Series
@@ -153,6 +154,10 @@ class ProductProcessor:
         images.sort_values(by="thumb_size", ascending=False, inplace=True)
         max_img = images.iloc[0]["thumb"] if len(images) > 0 else None
         # TODO : Thumbnail Image 이외의 나머지 이미지 처리
+
+        # Replace Domain
+        if max_img:
+            max_img = os.getenv("CLOUDFRONT_URL") + urlparse(max_img).path
         return max_img
 
     @classmethod

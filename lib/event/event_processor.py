@@ -2,6 +2,7 @@ import logging
 import os
 from datetime import datetime
 from typing import Type
+from urllib.parse import urlparse
 
 from pandas import DataFrame
 
@@ -58,6 +59,18 @@ class EventProcessor:
             ).timestamp()
         )
         df = df[df["written_at"].map(lambda x: x >= cur_timestamp)]
+
+        # Replace Image Url
+        df["image"] = df["image"].map(
+            lambda x: {
+                "thumb": os.getenv("CLOUDFRONT_URL") + urlparse(x["thumb"]).path
+                if x["thumb"]
+                else None,
+                "others": [
+                    os.getenv("CLOUDFRONT_URL") + urlparse(y).path for y in x["others"]
+                ],
+            }
+        )
         df = cls.__convert(df)
         return df
 
