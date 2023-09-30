@@ -43,14 +43,15 @@ class MongoRepository(Repository):
     @classmethod
     def reader(cls):
         return cls.__client.get_database(
-            os.getenv("MONGO_READ_DB"),
+            os.getenv("MONGO_CRAWLING_DB"),
             read_preference=ReadPreference.SECONDARY_PREFERRED,
         )
 
     @classmethod
     def writer(cls):
         return cls.__client.get_database(
-            os.getenv("MONGO_WRITE_DB"), write_concern=WriteConcern(w="majority")
+            os.getenv("MONGO_SERVICE_DB"),
+            write_concern=WriteConcern(w="majority", wtimeout=1000),
         )
 
     @classmethod
