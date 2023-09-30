@@ -20,6 +20,12 @@ class ProductRecommendationSchema(Schema):
     events = fields.List(fields.Integer(), required=True)
 
 
+class ServiceProductBestSchema(Schema):
+    brand = fields.Integer(required=True)  # best brand
+    price = fields.Float(required=True)  # best price
+    events = fields.List(fields.Integer(), required=True)  # best events
+
+
 class ServiceProductSchema(Schema):
     # id = fields.Integer(required=True) - Atlas 에서 자동 생성
     status = fields.Integer(required=True)
@@ -32,3 +38,5 @@ class ServiceProductSchema(Schema):
     recommendation = fields.Nested(ProductRecommendationSchema, required=True)
     image = fields.URL(required=True)
     crawled_infos = fields.Nested(CrawledInfoSchema, many=True, required=True)
+    price = fields.Float(required=True)  # 기본 가격
+    best = fields.Nested(ServiceProductBestSchema, required=True)

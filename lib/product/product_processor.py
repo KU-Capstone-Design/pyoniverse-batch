@@ -74,6 +74,16 @@ class ProductProcessor:
     def __normalize(cls, df: DataFrame, **kwargs):
         # 1. 이름 정제
         df["name"] = df["name"].map(cls.__normalize_name)
+        # 2. SALE - discounted_price 정제(discounted value 가 없으면 sale event 제거)
+        df["events"] = df[["price", "events"]].apply(
+            lambda x: list(
+                filter(
+                    lambda y: y["id"] != 7 or pd.notna(x["price"]["discounted_value"]),
+                    x["events"],
+                )
+            ),
+            axis=1,
+        )
         return df
 
     @classmethod
@@ -122,7 +132,6 @@ class ProductProcessor:
                 )
             )
         df.reset_index(inplace=True)
-
         return df
 
     @classmethod
@@ -140,6 +149,11 @@ class ProductProcessor:
         # 5. recommendation
         # TODO : Recommendation 처리
         df["recommendation"] = [[{"products": [], "events": []}]] * len(df)
+
+        # 기본 가격 = 최대 가격
+        df["price"] = df["brands"].map(lambda x: max([y["price"]["value"] for y in x]))
+
+        df["best"] = df[["price", "brands"]].apply(cls.__get_best, axis=1)
         return df
 
     @classmethod
@@ -527,19 +541,72 @@ class ProductProcessor:
 
     @classmethod
     def __collect_by_brand(cls, row: Series):
-        brands = []
+        brands = {}
         for idx, crawled_info in enumerate(row["crawled_info"]):
             brand_id = crawled_info["brand"]
-            price = row["price"][idx]
-            brand_events = [e["id"] for e in row["events"] if e["brand"] == brand_id]
-            brands.append(
-                {
+            if brand_id not in brands:
+                price = row["price"][idx]
+                brand_events = [
+                    e["id"] for e in row["events"] if e["brand"] == brand_id
+                ]
+                brands[brand_id] = {
                     "id": brand_id,
                     "price": price,
                     "events": brand_events,
                 }
-            )
-        return brands
+            else:
+                price = row["price"][idx]
+                brands[brand_id]["price"] = {
+                    "value": brands[brand_id]["price"]["value"] or price["value"],
+                    "currency": brands[brand_id]["price"]["currency"]
+                    or price["currency"],
+                    "discounted_value": brands[brand_id]["price"]["discounted_value"]
+                    or price["discounted_value"],
+                }
+        return list(brands.values())
+
+    @classmethod
+    def __get_best(cls, row: Series):
+        default_price = row["price"]
+        best_price, best_brand, best_events = None, None, []
+        for brand in row["brands"]:
+            for event in brand["events"]:
+                match event:
+                    case 1:  # 1+1
+                        t_price = brand["price"]["value"] / 2
+                        if best_price is None or t_price < best_price:
+                            best_price = t_price
+                            best_brand = brand["id"]
+                            best_events = brand["events"]
+                    case 2:  # 2+1
+                        t_price = brand["price"]["value"] * 2 / 3
+                        if best_price is None or t_price < best_price:
+                            best_price = t_price
+                            best_brand = brand["id"]
+                            best_events = brand["events"]
+                    case 7:  # DISCOUNT
+                        t_price = brand["price"]["discounted_value"]
+                        if best_price is None or t_price < best_price:
+                            best_price = t_price
+                            best_brand = brand["id"]
+                            best_events = brand["events"]
+                    case 8:  # 3+1
+                        t_price = brand["price"]["value"] * 3 / 4
+                        if best_price is None or t_price < best_price:
+                            best_price = t_price
+                            best_brand = brand["id"]
+                            best_events = brand["events"]
+                    case _:
+                        continue
+        if best_price is None:
+            best_price = default_price
+            best_brand = row["brands"][0]["id"]
+            best_events = row["brands"][0]["events"]
+        return {
+            "price": round(best_price, 2),
+            "brand": best_brand,
+            "events": best_events,
+        }
 
     @classmethod
     def __convert(cls, df: DataFrame, **kwargs):
