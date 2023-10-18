@@ -3,6 +3,7 @@ from typing import Any, Mapping, Sequence
 
 from pandas import DataFrame
 
+from lib.converter.event_converter import EventConverter
 from lib.db.factory import RepositoryFactory
 from lib.domain.brand.model.constant_brand_schema import ConstantBrandSchema
 from lib.domain.brand.model.service_event_schema import ServiceBrandEventSchema
@@ -89,7 +90,55 @@ class BrandProcessor(ProcessorIfs):
         return t
 
     def _process(self, data: DataFrame, *args, **kwargs) -> DataFrame:
-        pass
+        event_converter = EventConverter()
+        data["events"] = data[
+            [
+                "event_name",
+                "event_id",
+                "event_start_at",
+                "event_end_at",
+                "event_image",
+                "name",
+            ]
+        ].apply(
+            lambda x: {
+                "brand": x["name"],
+                "image": x["event_image"],
+                "name": x["event_name"],
+                "id": x["event_id"],
+                "image_alt": f"{x['event_name']} thumbnail",
+                "start_at": x["event_start_at"],
+                "end_at": x["event_end_at"],
+            },
+            axis=1,
+        )
+        data["products"] = data[
+            [
+                "product_brand",
+                "product_image",
+                "product_name",
+                "product_id",
+                "product_price",
+                "product_good_count",
+            ]
+        ].apply(
+            lambda x: {
+                "id": x["product_id"],
+                "image": x["product_image"],
+                "image_alt": f"{x['product_name']} thumbnail",
+                "name": x["product_name"],
+                "good_count": x["product_good_count"],
+                "price": x["product_price"],
+                "events": list(
+                    map(event_converter.convert_to_name, x["product_brand"]["events"])
+                ),
+                "event_price": x["product_brand"]["price"]["value"]
+                if x["product_brand"]["price"]["value"] != x["product_price"]
+                else None,
+            },
+            axis=1,
+        )
+        return data
 
     def _postprocess(
         self, data: DataFrame, *args, **kwargs
