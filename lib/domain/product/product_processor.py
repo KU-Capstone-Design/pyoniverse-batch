@@ -10,7 +10,7 @@ from pandas import DataFrame, Series
 
 from lib.common.util import convert_category
 from lib.db import Repository, RepositoryFactory
-from lib.product.schema.crawled_product_schema import CrawledProductSchema
+from lib.processor.product.schema.crawled_product_schema import CrawledProductSchema
 
 
 class ProductProcessor:
@@ -618,7 +618,7 @@ class ProductProcessor:
         df.rename(columns={"crawled_info": "crawled_infos"}, inplace=True)
 
         df.drop(
-            columns=["tags", "discounted_price", "price", "events"],
+            columns=["tags", "discounted_price", "events"],
             inplace=True,
             errors="ignore",
         )

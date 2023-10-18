@@ -1,6 +1,6 @@
 from marshmallow import EXCLUDE, Schema, fields
 
-from lib.common.schema import CrawledInfoSchema, ImageSchema
+from lib.model.schema import CrawledInfoSchema, ImageSchema
 
 
 class CrawledBrandEventSchema(Schema):

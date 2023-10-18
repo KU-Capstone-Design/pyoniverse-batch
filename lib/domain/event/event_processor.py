@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 from pandas import DataFrame
 
 from lib.db import Repository, RepositoryFactory
-from lib.event.schema.crawled_event_schema import CrawledBrandEventSchema
+from lib.processor.event.schema.crawled_event_schema import CrawledBrandEventSchema
 
 
 class EventProcessor:

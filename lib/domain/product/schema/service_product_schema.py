@@ -1,6 +1,6 @@
 from marshmallow import Schema, fields
 
-from lib.common.schema import CrawledInfoSchema
+from lib.model.schema import CrawledInfoSchema
 
 
 class ServiceProductPriceSchema(Schema):

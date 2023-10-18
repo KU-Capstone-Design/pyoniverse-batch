@@ -1,6 +1,6 @@
 from marshmallow import Schema, fields
 
-from lib.common.schema import CrawledInfoSchema, ImageSchema
+from lib.model.schema import CrawledInfoSchema, ImageSchema
 
 
 class ServiceBrandEventSchema(Schema):
