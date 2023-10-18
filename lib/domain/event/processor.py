@@ -39,11 +39,11 @@ class EventProcessor(ProcessorIfs):
         # Replace Image Url
         data["image"] = data["image"].map(
             lambda x: {
-                "thumb": os.getenv("IMAGE_URL") + urlparse(x["thumb"]).path
+                "thumb": os.getenv("IMAGE_DOMAIN") + urlparse(x["thumb"]).path
                 if x["thumb"]
                 else None,
                 "others": [
-                    os.getenv("IMAGE_URL") + urlparse(y).path for y in x["others"]
+                    os.getenv("IMAGE_DOMAIN") + urlparse(y).path for y in x["others"]
                 ],
             }
         )
@@ -75,17 +75,3 @@ class EventProcessor(ProcessorIfs):
         if errors:
             raise SchemaValidationError(errors)
         return data
-
-    # @classmethod
-    # def __end(cls, data: DataFrame, repository: Type[Repository], *args, **kwargs):
-    #     filters = data["crawled_infos"].map(
-    #             lambda x: {
-    #                 "$or": [
-    #                     {"crawled_infos.spider": y["spider"], "crawled_infos.id": y["id"]}
-    #                     for y in x
-    #                 ]
-    #             }
-    #     )
-    #     data = data.to_dict("records")
-    #     filters = filters.to_list()
-    #     repository.save_all("events", data, filters)
