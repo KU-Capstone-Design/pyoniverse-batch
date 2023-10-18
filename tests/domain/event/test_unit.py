@@ -20,3 +20,24 @@ def test_preprocess(env):
     data = processor._preprocess()
     # then
     assert len(data) > 0
+
+
+def test_process(env):
+    # given
+    processor = EventProcessor()
+    # when
+    data = processor._preprocess()
+    data = processor._process(data)
+    # then
+    assert len(data) > 0
+
+
+def test_postprocess(env):
+    # given
+    processor = EventProcessor()
+    # when
+    data = processor._preprocess()
+    data = processor._process(data)
+    data = processor._postprocess(data)
+    # then
+    assert len(data) > 0

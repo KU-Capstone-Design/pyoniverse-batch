@@ -1,6 +1,6 @@
 from marshmallow import EXCLUDE, Schema, fields
 
-from lib.model.schema import CrawledInfoSchema, ImageSchema
+from lib.model.schema import CrawledInfoSchema, CrawledImageSchema
 
 
 class CrawledBrandEventSchema(Schema):
@@ -8,7 +8,7 @@ class CrawledBrandEventSchema(Schema):
     start_at = fields.Integer(required=True)
     end_at = fields.Integer(required=True)
     name = fields.String(required=True)
-    image = fields.Nested(ImageSchema, required=True)
+    image = fields.Nested(CrawledImageSchema, required=True)
     description = fields.String(required=True, allow_none=True)
 
     class Meta:

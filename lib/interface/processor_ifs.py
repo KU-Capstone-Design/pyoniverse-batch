@@ -33,7 +33,9 @@ class ProcessorIfs(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def _postprocess(self, data: DataFrame, *args, **kwargs) -> DataFrame:
+    def _postprocess(
+        self, data: DataFrame, *args, **kwargs
+    ) -> Sequence[Mapping[str, Any]]:
         pass
 
     def __configure_logger(self):

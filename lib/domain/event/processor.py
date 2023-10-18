@@ -1,10 +1,13 @@
 import os
+from typing import Any, Mapping, Sequence
 from urllib.parse import urlparse
 
+import pandas as pd
 from pandas import DataFrame
 
 from lib.db.factory import RepositoryFactory
 from lib.domain.event.model.crawled_event_schema import CrawledBrandEventSchema
+from lib.domain.event.model.service_event_schema import ServiceBrandEventSchema
 from lib.error.processor import SchemaValidationError
 from lib.interface.processor_ifs import ProcessorIfs
 from lib.interface.repository_ifs import RepositoryIfs
@@ -44,6 +47,7 @@ class EventProcessor(ProcessorIfs):
                 ],
             }
         )
+        data = data[data["image"].map(lambda x: pd.notna(x["thumb"]))]
         data["brand"] = data["crawled_info"].map(lambda x: x["brand"])
 
         # 2. crawled_infos
@@ -51,7 +55,9 @@ class EventProcessor(ProcessorIfs):
         data["crawled_infos"] = data["crawled_infos"].map(lambda x: [x])
         return data
 
-    def _postprocess(self, data: DataFrame, *args, **kwargs) -> DataFrame:
+    def _postprocess(
+        self, data: DataFrame, *args, **kwargs
+    ) -> Sequence[Mapping[str, Any]]:
         data = data[
             [
                 "brand",
@@ -63,6 +69,11 @@ class EventProcessor(ProcessorIfs):
                 "end_at",
             ]
         ]
+        data = data.to_dict("records")
+        errors = ServiceBrandEventSchema().validate(data, many=True)
+        # TODO : Send error to slack
+        if errors:
+            raise SchemaValidationError(errors)
         return data
 
     # @classmethod
