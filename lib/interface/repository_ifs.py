@@ -1,14 +1,18 @@
+import logging
+import os
 from abc import ABCMeta, abstractmethod
 from typing import Any, List, Mapping, Optional
 
 
 class RepositoryIfs(metaclass=ABCMeta):
     def __init__(self, db_name: str, *args, **kwargs):
+        self.logger = logging.getLogger(f"repository.{db_name}")
+        self.__configure_logger()
         self._client = self._connect(*args, **kwargs)
         self._db_name = db_name
 
     @abstractmethod
-    def _connect(self, *args, **kwargs) -> Any:
+    def _connect(self, *args, **kwargs):
         pass
 
     @abstractmethod
@@ -19,7 +23,7 @@ class RepositoryIfs(metaclass=ABCMeta):
         project: Mapping[str, bool] = None,
         hint: Mapping[str, int] = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> Optional[Mapping[str, Any]]:
         pass
 
@@ -33,7 +37,7 @@ class RepositoryIfs(metaclass=ABCMeta):
         order_by: Mapping[str, int] = None,
         limit: int = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> List[Mapping[str, Any]]:
         pass
 
@@ -44,6 +48,13 @@ class RepositoryIfs(metaclass=ABCMeta):
         attr_name: str,
         filter: Mapping[str, Any] = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> List[Any]:
         pass
+
+    def __configure_logger(self):
+        match os.getenv("STAGE"):
+            case "prod":
+                self.logger.setLevel(logging.INFO)
+            case _:
+                self.logger.setLevel(logging.DEBUG)
