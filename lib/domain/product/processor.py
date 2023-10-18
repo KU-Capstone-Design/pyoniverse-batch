@@ -8,12 +8,10 @@ from urllib.parse import urlparse
 import pandas as pd
 from pandas import DataFrame, Series
 
-from lib.common.util import convert_category
-from lib.db import Repository, RepositoryFactory
-from lib.processor.product.schema.crawled_product_schema import CrawledProductSchema
+from lib.interface.processor_ifs import ProcessorIfs
 
 
-class ProductProcessor:
+class ProductProcessor(ProcessorIfs):
     logger = logging.getLogger("ProductProcessor")
 
     def __init__(self, *args, **kwargs):

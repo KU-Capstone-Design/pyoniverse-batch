@@ -69,13 +69,23 @@ class MongoRepository(RepositoryIfs):
             hint = [(k, v) for k, v in hint.items()]
         if order_by:
             order_by = [(k, v) for k, v in hint.items()]
-        data = list(
-            self.read_db[rel_name]
-            .find(filter=filter, projection=project)
-            .sort(order_by)
-            .limit(limit)
-            .hint(hint)
-        )
+        else:
+            order_by = [("_id", 1)]
+        if limit:
+            data = list(
+                self.read_db[rel_name]
+                .find(filter=filter, projection=project)
+                .sort(order_by)
+                .limit(limit)
+                .hint(hint)
+            )
+        else:
+            data = list(
+                self.read_db[rel_name]
+                .find(filter=filter, projection=project)
+                .sort(order_by)
+                .hint(hint)
+            )
         if not data:
             self.logger.debug(f"{rel_name}: {filter} Not Found")
         return data
