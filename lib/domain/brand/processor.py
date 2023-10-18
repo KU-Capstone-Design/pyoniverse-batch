@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from typing import Any, Mapping, Sequence
 
 from pandas import DataFrame
@@ -6,6 +7,7 @@ from pandas import DataFrame
 from lib.converter.event_converter import EventConverter
 from lib.db.factory import RepositoryFactory
 from lib.domain.brand.model.constant_brand_schema import ConstantBrandSchema
+from lib.domain.brand.model.service_brand_schema import ServiceBrandSchema
 from lib.domain.brand.model.service_event_schema import ServiceBrandEventSchema
 from lib.domain.brand.model.service_product_schema import ServiceProductSchema
 from lib.error.processor import SchemaValidationError
@@ -66,7 +68,8 @@ class BrandProcessor(ProcessorIfs):
         if errors:
             raise SchemaValidationError(errors)
         brands = self.__constant_repository.find(
-            rel_name="brands", project={"_id": False, "id": "$_id", "name": True}
+            rel_name="brands",
+            project={"_id": False, "id": "$_id", "name": True, "slug": True},
         )
         self.logger.info(f"Brands: {len(brands)}")
         errors = ConstantBrandSchema().validate(brands, many=True)
@@ -107,8 +110,12 @@ class BrandProcessor(ProcessorIfs):
                 "name": x["event_name"],
                 "id": x["event_id"],
                 "image_alt": f"{x['event_name']} thumbnail",
-                "start_at": x["event_start_at"],
-                "end_at": x["event_end_at"],
+                "start_at": datetime.utcfromtimestamp(x["event_start_at"]).strftime(
+                    "%Y-%m-%d"
+                ),
+                "end_at": datetime.utcfromtimestamp(x["event_end_at"]).strftime(
+                    "%Y-%m-%d"
+                ),
             },
             axis=1,
         )
@@ -143,4 +150,17 @@ class BrandProcessor(ProcessorIfs):
     def _postprocess(
         self, data: DataFrame, *args, **kwargs
     ) -> Sequence[Mapping[str, Any]]:
-        pass
+        data = data[data.columns.drop(list(data.filter(regex=r"event_|product_|name")))]
+        data = data.groupby(data.index).agg({"events": list, "products": list})
+        data["events"] = data["events"].map(lambda x: sorted(x, key=lambda x: x["id"]))
+        data["products"] = data["products"].map(
+            lambda x: sorted(x, key=lambda x: x["good_count"])[:3]
+        )
+        data["id"] = data.index
+        data = data.to_dict("records")
+
+        errors = ServiceBrandSchema().validate(data, many=True)
+        # TODO : Send error to slack
+        if errors:
+            raise SchemaValidationError(errors)
+        return data
