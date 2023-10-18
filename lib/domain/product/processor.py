@@ -1,81 +1,68 @@
-import logging
 import os
 import re
 from collections import Counter
-from typing import List, Type
+from functools import reduce
+from typing import Any, List, Mapping, Optional, Sequence
 from urllib.parse import urlparse
 
+import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
 
-from lib.common.util import convert_category
-from lib.db import Repository, RepositoryFactory
-from lib.product.schema.crawled_product_schema import CrawledProductSchema
+from lib.converter.category_converter import CategoryConverter
+from lib.db.factory import RepositoryFactory
+from lib.domain.product.model.crawled_product_schema import CrawledProductSchema
+from lib.domain.product.model.service_product_schema import ServiceProductSchema
+from lib.error.processor import SchemaValidationError
+from lib.interface.processor_ifs import ProcessorIfs
+from lib.interface.repository_ifs import RepositoryIfs
 
 
-class ProductProcessor:
-    logger = logging.getLogger("ProductProcessor")
-
+class ProductProcessor(ProcessorIfs):
     def __init__(self, *args, **kwargs):
-        raise NotImplementedError("This class is not meant to be instantiated")
-
-    @classmethod
-    def run(cls, *args, **kwargs):
-        cls.logger.info("Start")
-        repository = RepositoryFactory.get_repository("MongoRepository")
-        data = cls.__start(repository, *args, **kwargs)
-        cls.logger.info(f"Process {len(data)} items")
-        data = cls.__process(data, *args, **kwargs)
-
-        cls.logger.info(f"End {len(data)} items")
-        cls.__end(data, repository, *args, **kwargs)
-
-    @classmethod
-    def __start(cls, repository: Type[Repository], *args, **kwargs):
-        data = repository.find_all("products")
-        cls.logger.info(f"Data: {len(data)}")
-
-        errors = CrawledProductSchema().validate(data=data, many=True)
-        for error, reason in errors.items():
-            cls.logger.info(f"Error: {error} - {reason}")
-        cls.logger.info(f"Error: {len(errors)}")
-        res = []
-        for idx, d in enumerate(data):
-            if idx in errors:
-                continue
-            res.append(d)
-        return res
-
-    @classmethod
-    def __process(cls, data, *args, **kwargs):
-        # 1. 데이터 정제
-        # 2. 이름 기준으로 병합
-        # 3. 상용 데이터로 변환
-        df = DataFrame(data)
-        df.drop(
-            columns=["_id", "created_at", "updated_at"], inplace=True, errors="ignore"
+        super().__init__("product")
+        self.__repository: RepositoryIfs = RepositoryFactory.get_instance(
+            _type="mongo", db_name=os.getenv("MONGO_CRAWLING_DB")
         )
 
+    def _preprocess(self, *args, **kwargs) -> DataFrame:
+        data = self.__repository.find(
+            rel_name="products",
+            project={"_id": False, "created_at": False, "updated_at": False},
+        )
+        self.logger.info(f"Data: {len(data)}")
+        errors = CrawledProductSchema().validate(data, many=True)
+        # TODO : Send error to slack
+        if errors:
+            raise SchemaValidationError(errors)
+        return DataFrame(data)
+
+    def _process(self, data: DataFrame, *args, **kwargs) -> DataFrame:
+        # 1. 데이터 필터
+        self.logger.info("Filter data")
+        data = self.__filter(data)
+
+        # 2. 카테고리 찾기
+        self.logger.info("Find categories")
+        data = self.__fill(data)
+
         # 1. 데이터 정제
-        df = cls.__normalize(df)
+        self.logger.info("Normalize data")
+        data = self.__normalize(data)
 
         # 2. 이름 기준으로 병합
-        df = cls.__merge(df)
+        self.logger.info("Merge data")
+        data = self.__merge(data)
 
         # 3. 병합 후 데이터 정제
-        df = cls.__post_merge(df)
+        self.logger.info("Post-merge data")
+        data = self.__post_merge(data)
 
-        # 3. 상용 데이터로 변환
-        df = cls.__convert(df)
+        return data
 
-        return df
-
-    @classmethod
-    def __normalize(cls, df: DataFrame, **kwargs):
-        # 1. 이름 정제
-        df["name"] = df["name"].map(cls.__normalize_name)
-        # 2. SALE - discounted_price 정제(discounted value 가 없으면 sale event 제거)
-        df["events"] = df[["price", "events"]].apply(
+    def __filter(self, data: DataFrame, *args, **kwargs) -> DataFrame:
+        # SALE - discounted_price 정제(discounted value 가 없으면 sale event 제거)
+        data["events"] = data[["price", "events"]].apply(
             lambda x: list(
                 filter(
                     lambda y: y["id"] != 7 or pd.notna(x["price"]["discounted_value"]),
@@ -84,98 +71,15 @@ class ProductProcessor:
             ),
             axis=1,
         )
-        return df
+        return data
 
-    @classmethod
-    def __normalize_name(cls, x: str):
-        x = x.strip().lower()
-        x = re.sub(r"\[|\{", "(", x)
-        x = re.sub(r"\]|\}", ")", x)
-
-        p = re.compile(r"(\d+(\.\d)?\d*)\s*(ml|l|kg|g|mm|p|t|입)")
-        if t := p.search(x):
-            digit = float(t.group(1))
-            metric = t.group(3)
-            x = p.sub("", x)
-            x = re.sub(r"(\(\s*\)|\s*\}|\s*\])", "", x)
-            # remove unclosed parenthesis
-            x = re.sub(r"^\)", "", x)
-            x = f"{x}({digit}{metric})"
-        x = re.sub(r"\s+", " ", x).strip()
-        return x
-
-    @classmethod
-    def __merge(cls, df: DataFrame, **kwargs):
-        # Name 기준으로 병합 - nan 값은 무시
-        df = df.groupby("name").agg(
-            {
-                "crawled_info": list,
-                "description": list,
-                "events": "sum",
-                "image": list,
-                "price": list,
-                "category": list,
-                "tags": "sum",
-            }
+    def __fill(self, data: DataFrame, *args, **kwargs) -> DataFrame:
+        data["category"] = data[["category", "tags", "name"]].apply(
+            self.__fill_category, axis=1
         )
-        for column in df.columns:
-            if column == "name":
-                continue
-            df[column] = df[column].map(
-                lambda x: list(
-                    filter(
-                        lambda y: isinstance(y, list)
-                        or isinstance(y, dict)
-                        or pd.notna(y),
-                        x,
-                    )
-                )
-            )
-        df.reset_index(inplace=True)
-        return df
+        return data
 
-    @classmethod
-    def __post_merge(cls, df: DataFrame, **kwargs):
-        # 1. image
-        df["image"] = df["image"].map(cls.__get_largest_image)
-        # 2. description
-        df["description"] = df["description"].map(
-            lambda x: x[0] if len(x) > 0 else None
-        )
-        # 3. category
-        df["category"] = df.apply(cls.__get_category, axis=1)
-        # 4. brand 별 정제
-        df["brands"] = df.apply(cls.__collect_by_brand, axis=1)
-        # 5. recommendation
-        # TODO : Recommendation 처리
-        df["recommendation"] = [[{"products": [], "events": []}]] * len(df)
-
-        # 기본 가격 = 최대 가격
-        df["price"] = df["brands"].map(lambda x: max([y["price"]["value"] for y in x]))
-
-        df["best"] = df[["price", "brands"]].apply(cls.__get_best, axis=1)
-        return df
-
-    @classmethod
-    def __get_largest_image(cls, images: List[dict]):
-        max_img = None
-
-        images = DataFrame(images)
-        images.dropna(subset=["thumb"], inplace=True)
-        images["thumb_size"] = images["size"].map(
-            lambda x: x["thumb"]["width"] * x["thumb"]["height"] if "thumb" in x else 0
-        )
-        images.sort_values(by="thumb_size", ascending=False, inplace=True)
-        max_img = images.iloc[0]["thumb"] if len(images) > 0 else None
-        # TODO : Thumbnail Image 이외의 나머지 이미지 처리
-
-        # Replace Domain
-        if max_img:
-            max_img = os.getenv("CLOUDFRONT_URL") + urlparse(max_img).path
-        return max_img
-
-    @classmethod
-    def __get_category(cls, row: Series):
+    def __fill_category(self, row: Series) -> Optional[int]:
         """
         1. tag 로 카테고리 찾기
         2. name 로 카테고리 찾기
@@ -185,6 +89,7 @@ class ProductProcessor:
             2. food 와 다른 카테고리가 겹치면 해당 카테고리
             3. food 이외의 다른 카테고리 두 개 이상 겹치면 로그 띄우고, 첫번째 카테고리로 매칭
         """
+        converter = CategoryConverter()
         category_tag_map = {
             "Drink": [
                 "냉장커피",
@@ -357,7 +262,8 @@ class ProductProcessor:
                 "드링크",
                 "워터",
                 "ml",
-                "l" "아메리카노",
+                "l",
+                "아메리카노",
                 "라떼",
                 "우유",
             ],
@@ -515,9 +421,7 @@ class ProductProcessor:
                 "바디워시",
             ],
         }
-
         categories = []
-
         for tag in row["tags"]:
             for category, tags in category_tag_map.items():
                 if tag in tags:
@@ -528,16 +432,114 @@ class ProductProcessor:
                 if re.search(_pattern, row["name"]):
                     categories.append(category)
 
-        categories = [convert_category(category) for category in categories]
-        categories += row["category"]
-
-        if categories:
-            categories = Counter(categories)
+        categories = list(map(converter.convert_to_id, categories))
+        categories.append(row["category"])
+        if categories := Counter(filter(pd.notna, categories)):
             category = categories.most_common(1)[0][0]
+            return category
         else:
-            # Default: Food
-            category = convert_category("Food")
-        return category
+            return None
+
+    def __normalize(self, data: DataFrame, **kwargs):
+        # 이름 정제
+        data["name"] = data["name"].map(self.__normalize_name)
+        return data
+
+    def __normalize_name(self, x: str):
+        x = x.strip().lower()
+        x = re.sub(r"\[|\{", "(", x)
+        x = re.sub(r"\]|\}", ")", x)
+
+        p = re.compile(r"(\d+(\.\d)?\d*)\s*(ml|l|kg|g|mm|p|t|입)")
+        if t := p.search(x):
+            digit = float(t.group(1))
+            metric = t.group(3)
+            x = p.sub("", x)
+            x = re.sub(r"(\(\s*\)|\s*\}|\s*\])", "", x)
+            # remove unclosed & empty parenthesis
+            x = re.sub(r"\(\)|^\)", "", x)
+            x = f"{x}({digit}{metric})"
+        x = re.sub(r"\s+", " ", x).strip()
+        return x
+
+    def __merge(self, data: DataFrame, **kwargs):
+        # Name 기준으로 병합 - nan 값은 무시
+        data = data.groupby("name").agg(
+            {
+                "crawled_info": list,
+                "description": list,
+                "events": "sum",
+                "image": list,
+                "price": list,
+                "category": list,
+            }
+        )
+        for column in data.columns:
+            if column == "name":
+                continue
+            data[column] = data[column].map(
+                lambda x: list(
+                    filter(
+                        lambda y: isinstance(y, list)
+                        or isinstance(y, dict)
+                        or pd.notna(y),
+                        x,
+                    )
+                )
+            )
+        data.reset_index(inplace=True)
+        return data
+
+    def __post_merge(self, data: DataFrame, **kwargs):
+        # 1. image
+        data["image"] = data["image"].map(self.__get_largest_image)
+        # 2. description
+        data["description"] = data["description"].map(
+            lambda x: x[0] if len(x) > 0 else None
+        )
+        # 3. category
+        data["category"] = data["category"].map(
+            lambda x: Counter(filter(pd.notna, x)).most_common(1)[0][0]
+            if Counter(filter(pd.notna, x))
+            else None,
+        )
+        # 4. brand 별 정제
+        data["brands"] = data.apply(self.__collect_by_brand, axis=1)
+        # 5. recommendation
+        # TODO : Recommendation 처리
+        data["recommendation"] = [{"products": [], "events": []}] * len(data)
+
+        # 기본 가격 = 최대 가격
+        data["price"] = data["brands"].map(
+            lambda x: max([y["price"]["value"] for y in x])
+        )
+        data["best"] = data[["price", "brands"]].apply(self.__get_best, axis=1)
+        return data
+
+    def __get_largest_image(self, images: List[dict]):
+        thumb_images = [x["thumb"] for x in images if x["thumb"] is not None]
+        thumb_sizes = list(
+            map(
+                lambda x: x["size"]["thumb"]["width"] * x["size"]["thumb"]["height"],
+                filter(lambda y: "thumb" in y["size"], images),
+            )
+        )
+        other_images = reduce(lambda acc, cur: acc + cur["others"], images, [])
+        other_sizes = reduce(
+            lambda acc, cur: acc
+            + list(map(lambda x: x["width"] * x["height"], cur["size"]["others"])),
+            filter(lambda y: "others" in y["size"], images),
+            [],
+        )
+        images = thumb_images + other_images
+        sizes = thumb_sizes + other_sizes
+        tuples = list(zip(images, sizes))
+        if tuples:
+            max_img = max(tuples, key=lambda x: x[1])[0]
+            max_img = os.getenv("IMAGE_DOMAIN") + urlparse(max_img).path
+            return max_img
+        else:
+            return None
 
     @classmethod
     def __collect_by_brand(cls, row: Series):
@@ -608,95 +610,21 @@ class ProductProcessor:
             "events": best_events,
         }
 
-    @classmethod
-    def __convert(cls, df: DataFrame, **kwargs):
-        # TODO : Status 처리
-        # 1. status
-        df["status"] = 1
-
-        # 2. crawled_infos
-        df.rename(columns={"crawled_info": "crawled_infos"}, inplace=True)
-
-        df.drop(
-            columns=["tags", "discounted_price", "price", "events"],
+    def _postprocess(
+        self, data: DataFrame, *args, **kwargs
+    ) -> Sequence[Mapping[str, Any]]:
+        # 3. 상용 데이터로 변환
+        data.rename(columns={"crawled_info": "crawled_infos"}, inplace=True)
+        data.drop(
+            columns=["tags", "discounted_price", "events"],
             inplace=True,
             errors="ignore",
         )
-        return df
-
-    @classmethod
-    def __end(cls, data: DataFrame, repository: Type[Repository], *args, **kwargs):
-        """
-        저장
-        """
-        filters = data["crawled_infos"].map(
-            lambda x: {
-                "$or": [
-                    {"crawled_infos.spider": y["spider"], "crawled_infos.id": y["id"]}
-                    for y in x
-                ]
-            }
-        )
+        data = data[data["image"].notna()]
+        data.replace(np.nan, None, inplace=True)
         data = data.to_dict("records")
-        filters = filters.to_list()
-        repository.save_all("products", data, filters)
-
-    @classmethod
-    def test_start(cls, repository: Type[Repository], *args, **kwargs):
-        if os.getenv("STAGE") != "test":
-            raise RuntimeError("This method is only for test")
-        return cls.__start(repository, *args, **kwargs)
-
-    @classmethod
-    def test_process(cls, data, *args, **kwargs):
-        if os.getenv("STAGE") != "test":
-            raise RuntimeError("This method is only for test")
-        return cls.__process(data, *args, **kwargs)
-
-    @classmethod
-    def test_normalize(cls, df: DataFrame, **kwargs):
-        if os.getenv("STAGE") != "test":
-            raise RuntimeError("This method is only for test")
-        return cls.__normalize(df, **kwargs)
-
-    @classmethod
-    def test_merge(cls, df: DataFrame, **kwargs):
-        if os.getenv("STAGE") != "test":
-            raise RuntimeError("This method is only for test")
-        return cls.__merge(df, **kwargs)
-
-    @classmethod
-    def test_post_merge(cls, df: DataFrame, **kwargs):
-        if os.getenv("STAGE") != "test":
-            raise RuntimeError("This method is only for test")
-        return cls.__post_merge(df, **kwargs)
-
-    @classmethod
-    def test_get_largest_image(cls, images: List[dict]):
-        if os.getenv("STAGE") != "test":
-            raise RuntimeError("This method is only for test")
-        return cls.__get_largest_image(images)
-
-    @classmethod
-    def test_get_category(cls, row):
-        if os.getenv("STAGE") != "test":
-            raise RuntimeError("This method is only for test")
-        return cls.__get_category(row)
-
-    @classmethod
-    def test_collect_by_brand(cls, row):
-        if os.getenv("STAGE") != "test":
-            raise RuntimeError("This method is only for test")
-        return cls.__collect_by_brand(row)
-
-    @classmethod
-    def test_convert(cls, df: DataFrame, **kwargs):
-        if os.getenv("STAGE") != "test":
-            raise RuntimeError("This method is only for test")
-        return cls.__convert(df, **kwargs)
-
-    @classmethod
-    def test_end(cls, data, repository: Type[Repository], *args, **kwargs):
-        if os.getenv("STAGE") != "test":
-            raise RuntimeError("This method is only for test")
-        return cls.__end(data, repository, *args, **kwargs)
+        errors = ServiceProductSchema().validate(data, many=True)
+        # TODO : Send error to slack
+        if errors:
+            raise SchemaValidationError(errors)
+        return data

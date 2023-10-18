@@ -1,6 +1,6 @@
 from marshmallow import EXCLUDE, Schema, fields
 
-from lib.common.schema import CrawledInfoSchema, ImageSchema, PriceSchema
+from lib.model.schema import CrawledInfoSchema, CrawledImageSchema, PriceSchema
 
 
 class ProductEventSchema(Schema):
@@ -17,7 +17,7 @@ class CrawledProductSchema(Schema):
     name = fields.String(required=True)
     description = fields.String(required=True, allow_none=True)
     events = fields.Nested(ProductEventSchema, many=True, required=True)
-    image = fields.Nested(ImageSchema, required=True)
+    image = fields.Nested(CrawledImageSchema, required=True)
     price = fields.Nested(PriceSchema, required=True)
     discounted_price = fields.Float(required=True, allow_none=True)
     category = fields.Integer(required=True, allow_none=True)
