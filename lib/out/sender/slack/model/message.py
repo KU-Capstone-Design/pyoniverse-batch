@@ -4,7 +4,7 @@ from typing import List
 
 from marshmallow import EXCLUDE, Schema, fields, types
 
-from lib.out.model.enum.message_enum import MessageTypeEnum
+from lib.out.sender.slack.model.enum.message_enum import MessageTypeEnum
 
 
 @dataclass(kw_only=True)

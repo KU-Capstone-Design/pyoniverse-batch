@@ -60,15 +60,13 @@ class ProcessorIfs(metaclass=ABCMeta):
         if self._name == "brands":
             # id 기준 업데이트
             for datum in data:
-                updated.append({"id": datum["id"]})
+                updated.append({"id": datum["id"], "status": 1})
         else:
             for datum in data:
                 updated.append(
                     {
-                        "crawled_infos.spider": [
-                            x["spider"] for x in datum["crawled_infos"]
-                        ],
-                        "crawled_infos.id": [x["id"] for x in datum["crawled_infos"]],
+                        "crawled_infos": datum["crawled_infos"],
+                        "status": 2,  # 현재 업데이트 되는 데이터의 status는 2로 맞춘다.
                     }
                 )
         return updated

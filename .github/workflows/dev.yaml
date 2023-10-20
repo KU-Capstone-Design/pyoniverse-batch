@@ -40,7 +40,8 @@ jobs:
           echo "IMAGE_DOMAIN=${{ secrets.IMAGE_DOMAIN_DEV }}" >> .env
           echo "S3_BUCKET=${{ secrets.S3_BUCKET }}" >> .env
           echo "S3_KEY=${{ secrets.S3_KEY }}" >> .env
-          echo "QUEUE_NAME=${{ secrets.SLACK_SQS_NAME_DEV }}" >> .env
+          echo "SLACK_QUEUE_NAME=${{ secrets.SLACK_SQS_NAME_DEV }}" >> .env
+          echo "DB_QUEUE_NAME=${{ secrets.DB_SQS_NAME_DEV }}" >> .env
 
 
       - name: Test
