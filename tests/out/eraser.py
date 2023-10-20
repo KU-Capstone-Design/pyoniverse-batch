@@ -1,7 +1,5 @@
 import pytest
 
-from lib.out.sender.s3.s3 import S3Sender
-
 
 @pytest.fixture
 def env():
@@ -13,13 +11,14 @@ def env():
     dotenv.load_dotenv()
 
 
-def test_s3_sender(env):
+def test_s3eraser(env):
+    from lib.out.eraser.s3_eraser import S3Eraser
+
     # given
-    sender = S3Sender()
-    result = {"data": [{"key": "val"} for _ in range(1000)], "updated": [{"test": "v"}]}
+    eraser = S3Eraser()
     # when
     try:
-        res = sender.send(rel_name="test", result=result)
+        eraser.erase()
     except Exception:
         assert False
     # then
