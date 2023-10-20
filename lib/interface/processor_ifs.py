@@ -8,10 +8,10 @@ from pandas import DataFrame
 
 class ProcessorIfs(metaclass=ABCMeta):
     def __init__(self, name: str):
-        self.logger = logging.getLogger(f"processor.{name}")
+        self.logger = logging.getLogger(f"batch.processor.{name}")
         self.__configure_logger()
 
-    def run(self, *args, **kwargs) -> DataFrame:
+    def run(self, *args, **kwargs) -> Sequence[Mapping[str, Any]]:
         self.logger.info("Start Preprocessing")
         data: DataFrame = self._preprocess(*args, **kwargs)
         self.logger.info("Done Preprocessing")
@@ -19,7 +19,7 @@ class ProcessorIfs(metaclass=ABCMeta):
         data = self._process(data, *args, **kwargs)
         self.logger.info("Done Processing")
         self.logger.info("Start Postprocessing")
-        data = self._postprocess(data, *args, **kwargs)
+        data: Sequence[Mapping[str, Any]] = self._postprocess(data, *args, **kwargs)
         self.logger.info("Done Postprocessing")
         self.logger.info(f"Result: {len(data)}")
         return data

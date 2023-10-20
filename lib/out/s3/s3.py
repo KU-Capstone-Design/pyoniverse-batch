@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping, NoReturn, Sequence
 
 import boto3
 from boto3_type_annotations.s3 import Client
@@ -13,7 +13,7 @@ class S3Sender:
 
     def send(
         self, rel_name: str, data: Sequence[Mapping[str, Any]], *args, **kwargs
-    ) -> bool:
+    ) -> NoReturn:
         """
         Data를 100개씩 쪼개 {rel_name}_{idx}.json으로 전송
         """
@@ -28,7 +28,4 @@ class S3Sender:
                     Body=body,
                 )
         except Exception as e:
-            self.logger.error(e)
-            return False
-        else:
-            return True
+            raise e

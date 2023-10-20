@@ -6,7 +6,7 @@ from typing import Any, List, Mapping, Optional
 
 class RepositoryIfs(metaclass=ABCMeta):
     def __init__(self, db_name: str, *args, **kwargs):
-        self.logger = logging.getLogger(f"repository.{db_name}")
+        self.logger = logging.getLogger(f"batch.repository.{db_name}")
         self.__configure_logger()
         self._client = self._connect(*args, **kwargs)
         self._db_name = db_name
