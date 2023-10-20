@@ -34,10 +34,10 @@ jobs:
         run: |
           # Make .env file
           echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> .env
-          echo "MONGO_CRAWLING_DB=${{ secrets.MONGO_CRAWLING_DB }}" >> .env
-          echo "MONGO_SERVICE_DB=${{ secrets.MONGO_SERVICE_DB }}" >> .env
+          echo "MONGO_CRAWLING_DB=${{ secrets.MONGO_CRAWLING_DB_DEV }}" >> .env
+          echo "MONGO_SERVICE_DB=${{ secrets.MONGO_SERVICE_DB_DEV }}" >> .env
           echo "MONGO_CONSTANT_DB=${{ secrets.MONGO_CONSTANT_DB }}" >> .env
-          echo "IMAGE_DOMAIN=${{ secrets.IMAGE_DOMAIN }}" >> .env
+          echo "IMAGE_DOMAIN=${{ secrets.IMAGE_DOMAIN_DEV }}" >> .env
           echo "S3_BUCKET=${{ secrets.S3_BUCKET }}" >> .env
           echo "S3_KEY=${{ secrets.S3_KEY }}" >> .env
           echo "QUEUE_NAME=${{ secrets.SLACK_SQS_NAME_DEV }}" >> .env
