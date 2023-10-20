@@ -23,7 +23,7 @@ class BrandProcessor(ProcessorIfs):
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__("brand")
+        super().__init__("brands")
         self.__repository: RepositoryIfs = RepositoryFactory.get_instance(
             _type="mongo", db_name=os.getenv("MONGO_SERVICE_DB")
         )

@@ -15,14 +15,14 @@ from lib.interface.repository_ifs import RepositoryIfs
 
 class EventProcessor(ProcessorIfs):
     def __init__(self, *args, **kwargs):
-        super().__init__("event")
+        super().__init__("events")
         self.__repository: RepositoryIfs = RepositoryFactory.get_instance(
             _type="mongo", db_name=os.getenv("MONGO_CRAWLING_DB")
         )
 
     def _preprocess(self, *args, **kwargs) -> DataFrame:
         data = self.__repository.find(
-            rel_name="events",
+            rel_name=self._name,
             project={"_id": False, "created_at": False, "updated_at": False},
         )
         self.logger.info(f"Data: {len(data)}")

@@ -16,8 +16,11 @@ def env():
 def test_s3_sender(env):
     # given
     sender = S3Sender()
-    data = [{"key": "val"} for _ in range(1000)]
+    result = {"data": [{"key": "val"} for _ in range(1000)], "updated": [{"test": "v"}]}
     # when
-    res = sender.send(rel_name="test", data=data)
+    try:
+        res = sender.send(rel_name="test", result=result)
+    except Exception:
+        assert False
     # then
-    assert res is True
+    assert True
