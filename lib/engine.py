@@ -6,7 +6,7 @@ from lib.domain.factory import ProcessorFactory
 from lib.interface.processor_ifs import ProcessorIfs
 from lib.out.eraser.s3_eraser import S3Eraser
 from lib.out.sender.s3.s3 import S3Sender
-from lib.out.sender.slack import SlackSender
+from lib.out.sender.slack.slack import SlackSender
 
 
 class Engine:
@@ -47,7 +47,8 @@ class Engine:
             processors[_type] = ProcessorFactory.get_instance(_type=_type)
 
         results: Dict[
-            Literal["events", "brands", "products"], Sequence[Mapping[str, Any]]
+            Literal["events", "brands", "products"],
+            Mapping[Literal["data", "updated"], Sequence[Mapping[str, Any]]],
         ] = {}
         for _type, processor in processors.items():
             try:

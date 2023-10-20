@@ -1,7 +1,7 @@
 import logging
 import os
 from abc import ABCMeta, abstractmethod
-from typing import Any, Mapping, Sequence
+from typing import Any, Literal, Mapping, Sequence
 
 from pandas import DataFrame
 
@@ -12,7 +12,9 @@ class ProcessorIfs(metaclass=ABCMeta):
         self.logger = logging.getLogger(f"batch.processor.{name}")
         self.__configure_logger()
 
-    def run(self, *args, **kwargs) -> Mapping[str, Sequence[Mapping[str, Any]]]:
+    def run(
+        self, *args, **kwargs
+    ) -> Mapping[Literal["data", "updated"], Sequence[Mapping[str, Any]]]:
         self.logger.info("Start Preprocessing")
         data: DataFrame = self._preprocess(*args, **kwargs)
         self.logger.info("Done Preprocessing")

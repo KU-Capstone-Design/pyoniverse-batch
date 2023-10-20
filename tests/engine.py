@@ -1,7 +1,5 @@
 import pytest
 
-from lib.engine import Engine
-
 
 @pytest.fixture
 def env():
@@ -14,6 +12,8 @@ def env():
 
 
 def test_engine(env):
+    from lib.engine import Engine
+
     # given
     engine = Engine(stage="test", date="2023-10-20")
     # when
