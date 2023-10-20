@@ -7,8 +7,8 @@ import boto3
 from boto3_type_annotations.sqs import Client
 
 from lib.error import BaseError
-from lib.out.model.enum.message_enum import MessageTypeEnum
-from lib.out.model.message import Message
+from lib.out.sender.slack.model.enum.message_enum import MessageTypeEnum
+from lib.out.sender.slack.model.message import Message
 
 
 class SlackSender:
