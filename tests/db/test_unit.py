@@ -1,4 +1,7 @@
+import os
+
 import pytest
+from pymongo import MongoClient
 
 
 @pytest.fixture
@@ -17,7 +20,8 @@ def test_mongo_repository(env):
     # given
     db_name = "constant"
     rel_name = "brands"
-    repository = MongoRepository(db_name=db_name)
+    client = MongoClient(os.getenv("MONGO_URI"))
+    repository = MongoRepository(client=client, db_name=db_name)
     # when
     cu_data = repository.find_one(
         rel_name=rel_name,
