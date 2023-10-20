@@ -60,7 +60,7 @@ class ProcessorIfs(metaclass=ABCMeta):
         if self._name == "brands":
             # id 기준 업데이트
             for datum in data:
-                updated.append({"id": datum["id"], "status": 1})
+                updated.append({"id": datum["id"], "status": 2})
         else:
             for datum in data:
                 updated.append(
