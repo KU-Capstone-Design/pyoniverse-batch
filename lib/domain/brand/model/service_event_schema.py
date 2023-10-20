@@ -8,6 +8,8 @@ class ServiceBrandEventSchema(Schema):
     name = fields.String(required=True)
     start_at = fields.Integer(required=True)
     end_at = fields.Integer(required=True)
+    view_count = fields.Integer(required=True)
+    good_count = fields.Integer(required=True)
 
     class Meta:
         unknown = EXCLUDE

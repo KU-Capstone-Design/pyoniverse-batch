@@ -9,6 +9,7 @@ class ServiceProductSchema(Schema):
     image = fields.String(required=True)
     brands = fields.Nested(ProductBrandSchema, many=True, required=True)
     price = fields.Float(required=True)
+    view_count = fields.Integer(required=True)
     good_count = fields.Integer(required=True)
 
     class Meta:
