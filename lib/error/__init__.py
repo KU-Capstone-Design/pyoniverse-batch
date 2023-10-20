@@ -2,7 +2,7 @@ from typing import Any, Mapping
 
 
 class BaseError(RuntimeError):
-    def __init__(self, message: str, reason: Mapping[str, Any] = None, *args):
+    def __init__(self, message: str, reason: str = None, *args):
         super().__init__(*args)
         self.message = message
         self.reason = reason

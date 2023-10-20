@@ -1,23 +1,24 @@
 import json
-import logging
 import os
 from dataclasses import asdict
-from typing import Any, Dict
+from typing import Any, Dict, NoReturn
 
 import boto3
 from boto3_type_annotations.sqs import Client
 
-from lib.out.converter.type_to_message import TypeToMessageConverter
+from lib.error import BaseError
 from lib.out.model.enum.message_enum import MessageTypeEnum
 from lib.out.model.message import Message
 
 
 class SlackSender:
-    def __init__(self, *args, **kwargs):
-        self.logger = logging.getLogger("scrapy.sender")
-
-    def send(self, message_type: MessageTypeEnum, data: Dict[str, Any]) -> bool:
-        res: Message = self._convert(message_type, data)
+    def send(
+        self,
+        message_type: MessageTypeEnum,
+        data: Dict[str, Any] = None,
+        error: BaseError = None,
+    ) -> NoReturn:
+        res: Message = self.__convert(message_type, data, error)
         try:
             sqs_client: Client = boto3.client("sqs")
             sqs_queue_url: str = sqs_client.get_queue_url(
@@ -28,18 +29,38 @@ class SlackSender:
                 MessageBody=json.dumps(asdict(res)),
             )
         except Exception as e:
-            self.logger.error(e)
-            return False
-        else:
-            return True
+            raise e
 
-    def _convert(self, message_type: MessageTypeEnum, data: Dict[str, Any]) -> Message:
-        message_converter = TypeToMessageConverter()
-        msg = {
+    def __convert(
+        self,
+        message_type: MessageTypeEnum,
+        data: Dict[str, Any] = None,
+        error: BaseError = None,
+    ) -> Message:
+        msg: Dict[str, Any] = {
             "type": message_type.value,
             "source": "pyoniverse-etl-transform",
-            "text": message_converter.convert(message_type=message_type, data=data),
-            "ps": {k: str(asdict(v)) for k, v in data.items() if k != "summary"},
             "cc": ["윤영로"],
         }
+        match message_type:
+            case MessageTypeEnum.SUCCESS:
+                msg["text"] = "Success"
+                msg["ps"] = data
+            case MessageTypeEnum.ERROR:
+                msg["text"] = error.message
+                msg["ps"] = {"reason": error.reason}
+            case MessageTypeEnum.DEBUG:
+                msg["text"] = "Debug"
+                msg["ps"] = {
+                    "data": str(data),
+                    "error": str({"reason": error.reason, "message": error.message}),
+                }
+            case MessageTypeEnum.TEST:
+                msg["text"] = "Test"
+                msg["ps"] = {
+                    "data": str(data),
+                    "error": str({"reason": error.reason, "message": error.message}),
+                }
+            case _:
+                raise NotImplementedError
         return Message.load(msg)
