@@ -2,7 +2,7 @@ import pytest
 
 from lib.error import BaseError
 from lib.out.model.enum.message_enum import MessageTypeEnum
-from lib.out.slack.slack import SlackSender
+from lib.out.sender.slack import SlackSender
 
 
 @pytest.fixture

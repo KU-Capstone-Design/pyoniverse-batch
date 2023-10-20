@@ -5,7 +5,8 @@ from typing import Any, Dict, Literal, Mapping, Sequence
 from lib.domain.factory import ProcessorFactory
 from lib.interface.processor_ifs import ProcessorIfs
 
-from lib.out.s3.s3 import S3Sender
+from lib.out.sender.s3.s3 import S3Sender
+from lib.out.sender.slack import SlackSender
 
 
 class Engine:
@@ -34,7 +35,10 @@ class Engine:
         4. Slack 보내기
         5. 종료
         """
-        sender = S3Sender()
+        s3_sender = S3Sender()
+        slack_sender = SlackSender()
+        s3_eraser = S3Eraser()
+
         processors: Dict[Literal["events", "brands", "products"], ProcessorIfs] = {}
         for _type in ["events", "brands", "products"]:
             processors[_type] = ProcessorFactory.get_instance(_type=_type)
@@ -51,6 +55,7 @@ class Engine:
                 self.logger.error(f"{_type} processor: {e}")
                 return False
 
+        # Erase all tmp files
         for _type, data in results.items():
             try:
                 sender.send(_type, data)

@@ -1,6 +1,6 @@
 import pytest
 
-from lib.out.s3.s3 import S3Sender
+from lib.out.sender.s3.s3 import S3Sender
 
 
 @pytest.fixture
