@@ -152,7 +152,9 @@ class BrandProcessor(ProcessorIfs):
     ) -> Sequence[Mapping[str, Any]]:
         data = data[data.columns.drop(list(data.filter(regex=r"event_|product_|name")))]
         data = data.groupby(data.index).agg({"events": list, "products": list})
-        data["events"] = data["events"].map(lambda x: sorted(x, key=lambda x: x["id"]))
+        data["events"] = data["events"].map(
+            lambda x: sorted(x, key=lambda x: x["id"])[:3]
+        )
         data["products"] = data["products"].map(
             lambda x: sorted(x, key=lambda x: x["good_count"])[:3]
         )
