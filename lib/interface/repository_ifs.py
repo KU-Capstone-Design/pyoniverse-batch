@@ -5,15 +5,11 @@ from typing import Any, List, Mapping, Optional
 
 
 class RepositoryIfs(metaclass=ABCMeta):
-    def __init__(self, db_name: str, *args, **kwargs):
+    def __init__(self, client: Any, db_name: str, *args, **kwargs):
         self.logger = logging.getLogger(f"batch.repository.{db_name}")
         self.__configure_logger()
-        self._client = self._connect(*args, **kwargs)
+        self._client = client
         self._db_name = db_name
-
-    @abstractmethod
-    def _connect(self, *args, **kwargs):
-        pass
 
     @abstractmethod
     def find_one(

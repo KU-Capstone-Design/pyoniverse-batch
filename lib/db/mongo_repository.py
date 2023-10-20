@@ -10,24 +10,6 @@ from lib.interface.repository_ifs import RepositoryIfs
 
 
 class MongoRepository(RepositoryIfs):
-    @override
-    def _connect(self, *args, **kwargs):
-        """
-        :param args:
-        :param kwargs:
-        :return: MongoClient
-        """
-        self.logger.info("Connecting...")
-        try:
-            client: MongoClient = MongoClient(os.getenv("MONGO_URI"))
-            client.admin.command("ping")
-        except ConnectionFailure:
-            self.logger.error("Can't connect to Server")
-            exit(1)  # 종료
-        else:
-            self.logger.info("Connect to Mongo Client")
-            return client
-
     @property
     def read_db(self) -> Database:
         return self._client.get_database(
