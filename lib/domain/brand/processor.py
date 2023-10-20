@@ -43,6 +43,8 @@ class BrandProcessor(ProcessorIfs):
                 "start_at": True,
                 "end_at": True,
                 "name": True,
+                "good_count": True,
+                "view_count": True,
             },
         )
         self.logger.info(f"Event: {len(events)}")
@@ -60,6 +62,7 @@ class BrandProcessor(ProcessorIfs):
                 "name": True,
                 "price": True,
                 "good_count": True,
+                "view_count": True,
             },
         )
         self.logger.info(f"Products: {len(products)}")
@@ -75,6 +78,11 @@ class BrandProcessor(ProcessorIfs):
         errors = ConstantBrandSchema().validate(brands, many=True)
         if errors:
             raise SchemaValidationError(errors)
+
+        if not brands or not products or not events:
+            raise RuntimeError(
+                f"brands: {len(brands)}, products: {len(products)}, events: {len(events)}"
+            )
 
         # Join
         brands = DataFrame(brands)

@@ -46,7 +46,8 @@ class Engine:
         db_sender = DBSender()
 
         processors: Dict[Literal["events", "brands", "products"], ProcessorIfs] = {}
-        for _type in ["events", "brands", "products"]:
+        # TODO : brands(Service_* db 정보 사용하는 배치 처리하기
+        for _type in ["events", "products"]:
             processors[_type] = ProcessorFactory.get_instance(_type=_type)
 
         results: Dict[
