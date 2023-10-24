@@ -39,6 +39,7 @@ jobs:
           echo "MONGO_CONSTANT_DB=${{ secrets.MONGO_CONSTANT_DB }}" >> .env
           echo "IMAGE_DOMAIN=${{ secrets.IMAGE_DOMAIN_DEV }}" >> .env
           echo "S3_BUCKET=${{ secrets.S3_TMP_BUCKET }}" >> .env
+          echo "S3_BACKUP_BUCKET=${{ secrets.S3_BACKUP_BUCKET }}" >> .env
           echo "S3_KEY=${{ secrets.S3_KEY }}" >> .env
           echo "SLACK_QUEUE_NAME=${{ secrets.SLACK_SQS_NAME_DEV }}" >> .env
           echo "DB_QUEUE_NAME=${{ secrets.DB_SQS_NAME_DEV }}" >> .env
