@@ -55,7 +55,7 @@ jobs:
         shell: bash
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          DOCKER_IMAGE: pyoniverse-etl-transform
+          DOCKER_IMAGE: pyoniverse-transform-crawling
         run: |
           docker build -t $REGISTRY/$DOCKER_IMAGE:$STAGE .
           docker push $REGISTRY/$DOCKER_IMAGE:$STAGE
