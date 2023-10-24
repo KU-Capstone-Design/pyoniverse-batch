@@ -1,4 +1,4 @@
-from marshmallow import Schema, fields
+from marshmallow import EXCLUDE, Schema, fields
 
 from lib.model.schema import CrawledInfoSchema
 
@@ -36,3 +36,6 @@ class ServiceProductSchema(Schema):
     crawled_infos = fields.Nested(CrawledInfoSchema, many=True, required=True)
     price = fields.Float(required=True)  # 기본 가격
     best = fields.Nested(ServiceProductBestSchema, required=True)
+
+    class Meta:
+        unknown = EXCLUDE
