@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from typing import Any, Mapping, Sequence
 from urllib.parse import urlparse
 
@@ -20,7 +21,7 @@ class EventProcessor(ProcessorIfs):
             _type="mongo", db_name=os.getenv("MONGO_CRAWLING_DB")
         )
 
-    def _preprocess(self, *args, **kwargs) -> DataFrame:
+    def _preprocess(self, date: datetime, *args, **kwargs) -> DataFrame:
         data = self.__repository.find(
             rel_name=self._name,
             project={"_id": False, "created_at": False, "updated_at": False},
@@ -34,7 +35,7 @@ class EventProcessor(ProcessorIfs):
         #     self.logger.error(f"{error}: {reason}")
         return DataFrame(data)
 
-    def _process(self, data: DataFrame, *args, **kwargs) -> DataFrame:
+    def _process(self, data: DataFrame, date: datetime, *args, **kwargs) -> DataFrame:
         data["name"] = data["name"].map(lambda x: x.lower())
         # Replace Image Url
         data["image"] = data["image"].map(
@@ -56,7 +57,7 @@ class EventProcessor(ProcessorIfs):
         return data
 
     def _postprocess(
-        self, data: DataFrame, *args, **kwargs
+        self, data: DataFrame, date: datetime, *args, **kwargs
     ) -> Sequence[Mapping[str, Any]]:
         data = data[
             [

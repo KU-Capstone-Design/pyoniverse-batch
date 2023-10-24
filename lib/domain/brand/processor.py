@@ -32,7 +32,7 @@ class BrandProcessor(ProcessorIfs):
             _type="mongo", db_name=os.getenv("MONGO_CONSTANT_DB")
         )
 
-    def _preprocess(self, *args, **kwargs) -> DataFrame:
+    def _preprocess(self, date: datetime, *args, **kwargs) -> DataFrame:
         events = self.__repository.find(
             rel_name="events",
             project={
@@ -100,7 +100,7 @@ class BrandProcessor(ProcessorIfs):
         t = t.join(t3.add_prefix("product_"), how="inner")
         return t
 
-    def _process(self, data: DataFrame, *args, **kwargs) -> DataFrame:
+    def _process(self, data: DataFrame, date: datetime, *args, **kwargs) -> DataFrame:
         event_converter = EventConverter()
         data["events"] = data[
             [
@@ -156,7 +156,7 @@ class BrandProcessor(ProcessorIfs):
         return data
 
     def _postprocess(
-        self, data: DataFrame, *args, **kwargs
+        self, data: DataFrame, date: datetime, *args, **kwargs
     ) -> Sequence[Mapping[str, Any]]:
         data = data[data.columns.drop(list(data.filter(regex=r"event_|product_|name")))]
         data = data.groupby(data.index).agg({"events": list, "products": list})

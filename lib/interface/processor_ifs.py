@@ -1,6 +1,7 @@
 import logging
 import os
 from abc import ABCMeta, abstractmethod
+from datetime import datetime
 from typing import Any, Literal, Mapping, Sequence
 
 from pandas import DataFrame
@@ -13,16 +14,18 @@ class ProcessorIfs(metaclass=ABCMeta):
         self.__configure_logger()
 
     def run(
-        self, *args, **kwargs
+        self, date: datetime, *args, **kwargs
     ) -> Mapping[Literal["data", "updated"], Sequence[Mapping[str, Any]]]:
         self.logger.info("Start Preprocessing")
-        data: DataFrame = self._preprocess(*args, **kwargs)
+        data: DataFrame = self._preprocess(date, *args, **kwargs)
         self.logger.info("Done Preprocessing")
         self.logger.info("Start Processing")
-        data = self._process(data, *args, **kwargs)
+        data = self._process(data, date, *args, **kwargs)
         self.logger.info("Done Processing")
         self.logger.info("Start Postprocessing")
-        data: Sequence[Mapping[str, Any]] = self._postprocess(data, *args, **kwargs)
+        data: Sequence[Mapping[str, Any]] = self._postprocess(
+            data, date, *args, **kwargs
+        )
         self.logger.info("Done Postprocessing")
         self.logger.info("Find updated data")
         updated = self.__find_updated(data)
@@ -33,16 +36,16 @@ class ProcessorIfs(metaclass=ABCMeta):
         }
 
     @abstractmethod
-    def _preprocess(self, *args, **kwargs) -> DataFrame:
+    def _preprocess(self, date: datetime, *args, **kwargs) -> DataFrame:
         pass
 
     @abstractmethod
-    def _process(self, data: DataFrame, *args, **kwargs) -> DataFrame:
+    def _process(self, data: DataFrame, date: datetime, *args, **kwargs) -> DataFrame:
         pass
 
     @abstractmethod
     def _postprocess(
-        self, data: DataFrame, *args, **kwargs
+        self, data: DataFrame, date: datetime, *args, **kwargs
     ) -> Sequence[Mapping[str, Any]]:
         pass
 

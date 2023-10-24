@@ -26,6 +26,11 @@ class ServiceProductBestSchema(Schema):
     events = fields.List(fields.Integer(), required=True)  # best events
 
 
+class ServiceProductHistorySchema(Schema):
+    brands = fields.Nested(ProductBrandSchema, required=True, many=True)
+    date = fields.Date(required=True, format="iso")
+
+
 class ServiceProductSchema(Schema):
     name = fields.String(required=True)
     category = fields.Integer(required=True, allow_none=True)
@@ -36,6 +41,7 @@ class ServiceProductSchema(Schema):
     crawled_infos = fields.Nested(CrawledInfoSchema, many=True, required=True)
     price = fields.Float(required=True)  # 기본 가격
     best = fields.Nested(ServiceProductBestSchema, required=True)
+    histories = fields.Nested(ServiceProductHistorySchema, required=False, many=True)
 
     class Meta:
         unknown = EXCLUDE

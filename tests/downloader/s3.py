@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 import pytest
 
@@ -24,10 +25,11 @@ def test_s3_downloader(env):
         downloader.download(
             db_name=os.getenv("MONGO_SERVICE_DB"),
             rel_name="products",
-            date="2023-10-23",
+            date=datetime.strptime("2023-10-23", "%Y-%m-%d"),
         )
     )
     errors = ServiceProductSchema().validate(data, many=True)
     # then
     assert len(data) > 0
     assert not errors
+    breakpoint()

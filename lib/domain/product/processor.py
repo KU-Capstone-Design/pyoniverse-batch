@@ -1,7 +1,9 @@
 import os
 import re
 from collections import Counter
+from datetime import datetime
 from functools import reduce
+from itertools import chain
 from typing import Any, List, Mapping, Optional, Sequence
 from urllib.parse import urlparse
 
@@ -13,6 +15,7 @@ from lib.converter.category_converter import CategoryConverter
 from lib.db.factory import RepositoryFactory
 from lib.domain.product.model.crawled_product_schema import CrawledProductSchema
 from lib.domain.product.model.service_product_schema import ServiceProductSchema
+from lib.downloader.downloader import Downloader
 from lib.error.processor import SchemaValidationError
 from lib.interface.processor_ifs import ProcessorIfs
 from lib.interface.repository_ifs import RepositoryIfs
@@ -25,7 +28,7 @@ class ProductProcessor(ProcessorIfs):
             _type="mongo", db_name=os.getenv("MONGO_CRAWLING_DB")
         )
 
-    def _preprocess(self, *args, **kwargs) -> DataFrame:
+    def _preprocess(self, date: datetime, *args, **kwargs) -> DataFrame:
         data = self.__repository.find(
             rel_name=self._name,
             project={"_id": False, "created_at": False, "updated_at": False},
@@ -37,7 +40,7 @@ class ProductProcessor(ProcessorIfs):
             raise SchemaValidationError(errors)
         return DataFrame(data)
 
-    def _process(self, data: DataFrame, *args, **kwargs) -> DataFrame:
+    def _process(self, data: DataFrame, date: datetime, *args, **kwargs) -> DataFrame:
         # 1. 데이터 필터
         self.logger.info("Filter data")
         data = self.__filter(data)
@@ -57,6 +60,10 @@ class ProductProcessor(ProcessorIfs):
         # 3. 병합 후 데이터 정제
         self.logger.info("Post-merge data")
         data = self.__post_merge(data)
+
+        # 4. hostory 추가
+        self.logger.info("Append hostiries")
+        data = self.__append_histories(data, date)
 
         return data
 
@@ -541,8 +548,7 @@ class ProductProcessor(ProcessorIfs):
         else:
             return None
 
-    @classmethod
-    def __collect_by_brand(cls, row: Series):
+    def __collect_by_brand(self, row: Series):
         brands = {}
         for idx, crawled_info in enumerate(row["crawled_info"]):
             brand_id = crawled_info["brand"]
@@ -567,8 +573,7 @@ class ProductProcessor(ProcessorIfs):
                 }
         return list(brands.values())
 
-    @classmethod
-    def __get_best(cls, row: Series):
+    def __get_best(self, row: Series):
         default_price = row["price"]
         best_price, best_brand, best_events = None, None, []
         for brand in row["brands"]:
@@ -610,8 +615,79 @@ class ProductProcessor(ProcessorIfs):
             "events": best_events,
         }
 
+    def __append_histories(self, data: DataFrame, date: datetime) -> DataFrame:
+        downloader = Downloader()
+        previous_data = downloader.download(
+            db_name=os.getenv("MONGO_SERVICE_DB"), rel_name=self._name, date=date
+        )
+        try:
+            check = next(previous_data)
+            previous_data = chain([check], previous_data)
+            if "histories" in check:
+                previous_df = DataFrame(
+                    previous_data,
+                    columns=["crawled_infos", "name", "brands", "histories"],
+                )
+            else:
+                previous_df = DataFrame(
+                    previous_data, columns=["crawled_infos", "name", "brands"]
+                )
+                previous_df["histories"] = [[]] * len(previous_df)
+        except StopIteration as e:
+            self.logger.error("Previous Data doesn't exist")
+            data["histories"] = [[]] * len(data)
+            return data
+        else:
+            previous_df.rename(
+                columns={
+                    "crawled_infos": "previous_crawled_infos",
+                    "brands": "previous_brands",
+                },
+                inplace=True,
+            )
+            # merge
+            data = data.merge(previous_df, on="name", how="left", validate="one_to_one")
+            data["previous_crawled_infos"] = data["previous_crawled_infos"].map(
+                lambda x: x if isinstance(x, list) else []
+            )
+            data["tmp_crawled_info"] = data[
+                ["crawled_info", "previous_crawled_infos"]
+            ].apply(
+                lambda x: {
+                    (c["spider"], c["id"], c["url"]) for c in chain.from_iterable(x)
+                },
+                axis=1,
+            )
+            # Check (spider, id) is unique
+            actual_length = data["tmp_crawled_info"].map(lambda x: len(x)).sum()
+            expected_length = (
+                data["tmp_crawled_info"]
+                .map(lambda x: len([(c[0], c[1]) for c in x]))
+                .sum()
+            )
+            assert actual_length == expected_length
+
+            data["crawled_info"] = data["tmp_crawled_info"].map(
+                lambda x: [{"spider": y[0], "id": y[1], "url": y[2]} for y in x]
+            )
+            data.drop(columns=["tmp_crawled_info"], inplace=True)
+            # history 추가
+            data["histories"] = data["histories"].map(
+                lambda x: x if isinstance(x, list) else []
+            )
+            data["histories"] = data[["histories", "previous_brands"]].apply(
+                lambda x: x[0] + [{"date": date.strftime("%Y-%m-%d"), "brands": x[1]}]
+                if isinstance(x[1], list)
+                else x[0],
+                axis=1,
+            )
+            data.drop(
+                columns=["previous_brands", "previous_crawled_infos"], inplace=True
+            )
+            return data
+
     def _postprocess(
-        self, data: DataFrame, *args, **kwargs
+        self, data: DataFrame, date: datetime, *args, **kwargs
     ) -> Sequence[Mapping[str, Any]]:
         # 3. 상용 데이터로 변환
         data.rename(columns={"crawled_info": "crawled_infos"}, inplace=True)
