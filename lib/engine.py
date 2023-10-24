@@ -56,7 +56,7 @@ class Engine:
         ] = {}
         for _type, processor in processors.items():
             try:
-                data = processor.run()
+                data = processor.run(date=self.__date)
                 results[_type] = data
             except Exception as e:
                 # TODO : Send to slack
