@@ -681,6 +681,13 @@ class ProductProcessor(ProcessorIfs):
                 else x[0],
                 axis=1,
             )
+            # Deduplicate histories
+            data["histories"] = data["histories"].map(
+                lambda x: {y["date"]: y["brands"] for y in x}
+            )
+            data["histories"] = data["histories"].map(
+                lambda x: [{"date": k, "brands": v} for k, v in x.items()]
+            )
             data.drop(
                 columns=["previous_brands", "previous_crawled_infos"], inplace=True
             )
