@@ -7,6 +7,7 @@ from lib.domain.factory import ProcessorFactory
 from lib.interface.processor_ifs import ProcessorIfs
 from lib.out.eraser.s3_eraser import S3Eraser
 from lib.out.sender.db.db import DBSender
+from lib.out.sender.event.event import EventSender
 from lib.out.sender.s3.s3 import S3Sender
 from lib.out.sender.slack.slack import SlackSender
 
@@ -44,6 +45,7 @@ class Engine:
         s3_sender = S3Sender()
         slack_sender = SlackSender()
         db_sender = DBSender()
+        event_sender = EventSender()
 
         processors: Dict[Literal["events", "brands", "products"], ProcessorIfs] = {}
         for _type in ["events", "products"]:
@@ -81,6 +83,15 @@ class Engine:
             except Exception as e:
                 self.logger.error(f"{_type} db sender: {e}")
                 return False
+
+        # Finish Event Send
+        try:
+            res = event_sender.send(event_type="finished", date=self.__date)
+            if not res:
+                raise RuntimeError("Failed to send event")
+        except Exception as e:
+            self.logger.error(f"{_type} event sender: {e}")
+            return False
         return True
 
     def __configure_logger(self):
