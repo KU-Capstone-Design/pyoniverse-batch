@@ -32,4 +32,3 @@ def test_s3_downloader(env):
     # then
     assert len(data) > 0
     assert not errors
-    breakpoint()

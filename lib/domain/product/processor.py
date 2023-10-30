@@ -543,7 +543,7 @@ class ProductProcessor(ProcessorIfs):
         tuples = list(zip(images, sizes))
         if tuples:
             max_img = max(tuples, key=lambda x: x[1])[0]
-            max_img = os.getenv("IMAGE_DOMAIN") + urlparse(max_img).path
+            max_img = os.getenv("IMAGE_DOMAIN") + urlparse(max_img).path[4:]
             return max_img
         else:
             return None
