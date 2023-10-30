@@ -45,7 +45,7 @@ jobs:
           echo "DB_QUEUE_NAME=${{ secrets.DB_SQS_NAME_DEV }}" >> .env
           echo "EVENT_SOURCE=${{ secrets.EVENT_SOURCE }}" >> .env
           echo "EVENT_DETAIL_TYPE=${{ secrets.EVENT_DETAIL_TYPE }}" >> .env
-          echo "EVENT_BUS_NAME=${{ secrets.EVENT_BUS_NAME }}" >> .env
+          echo "EVENT_BUS_NAME=${{ secrets.EVENT_BUS_NAME_DEV }}" >> .env
 
 
       - name: Test
