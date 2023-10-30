@@ -48,6 +48,7 @@ class Engine:
         event_sender = EventSender()
 
         processors: Dict[Literal["events", "brands", "products"], ProcessorIfs] = {}
+        self.logger.info("Processing start")
         for _type in ["events", "products"]:
             processors[_type] = ProcessorFactory.get_instance(_type=_type)
 
@@ -64,6 +65,7 @@ class Engine:
                 self.logger.error(f"{_type} processor: {e}")
                 return False
 
+        self.logger.info("Send to s3 tmp folder")
         s3_results: Dict[Literal["events", "brands", "products"], Sequence[str]] = {}
         for _type, data in results.items():
             try:
@@ -72,6 +74,8 @@ class Engine:
                 # TODO : Send to slack
                 self.logger.error(f"{_type} s3 sender: {e}")
                 return False
+
+        self.logger.info("Send to db messages")
         for _type, data in s3_results.items():
             try:
                 db_sender.send(
@@ -85,6 +89,7 @@ class Engine:
                 return False
 
         # Finish Event Send
+        self.logger.info("Send finish event")
         try:
             res = event_sender.send(event_type="finished", date=self.__date)
             if not res:
@@ -92,6 +97,7 @@ class Engine:
         except Exception as e:
             self.logger.error(f"{_type} event sender: {e}")
             return False
+        self.logger.info("Done")
         return True
 
     def __configure_logger(self):

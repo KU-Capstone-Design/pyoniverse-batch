@@ -676,9 +676,10 @@ class ProductProcessor(ProcessorIfs):
                 lambda x: x if isinstance(x, list) else []
             )
             data["histories"] = data[["histories", "previous_brands"]].apply(
-                lambda x: x[0] + [{"date": date.strftime("%Y-%m-%d"), "brands": x[1]}]
-                if isinstance(x[1], list)
-                else x[0],
+                lambda x: x["histories"]
+                + [{"date": date.strftime("%Y-%m-%d"), "brands": x["previous_brands"]}]
+                if isinstance(x["previous_brands"], list)
+                else x["histories"],
                 axis=1,
             )
             # Deduplicate histories
@@ -703,7 +704,7 @@ class ProductProcessor(ProcessorIfs):
             inplace=True,
             errors="ignore",
         )
-        data = data[data["image"].notna()]
+        data = data[data["image"].notna()].copy()
         data.replace(np.nan, None, inplace=True)
         data = data.to_dict("records")
         errors = ServiceProductSchema().validate(data, many=True)
