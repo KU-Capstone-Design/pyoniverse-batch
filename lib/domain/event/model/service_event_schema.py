@@ -4,6 +4,7 @@ from lib.model.schema import CrawledInfoSchema, ServiceImageSchema
 
 
 class ServiceBrandEventSchema(Schema):
+    status = fields.Integer(required=True)
     name = fields.String(required=True)
     brand = fields.Integer(required=True)
     image = fields.Nested(ServiceImageSchema, required=True)
