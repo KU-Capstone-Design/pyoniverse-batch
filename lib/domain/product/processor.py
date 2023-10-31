@@ -33,36 +33,40 @@ class ProductProcessor(ProcessorIfs):
             rel_name=self._name,
             project={"_id": False, "created_at": False, "updated_at": False},
         )
-        self.logger.info(f"Data: {len(data)}")
         errors = CrawledProductSchema().validate(data, many=True)
-        # TODO : Send error to slack
         if errors:
-            raise SchemaValidationError(errors)
+            self.logger.error(
+                f"Crawling Product Schema Validation Error: {len(errors)}"
+            )
+            raise RuntimeError(
+                f"Crawling Product Schema Validation Error: {len(errors)}"
+            )
+        self.logger.info(f"Initial data: {len(data)}")
         return DataFrame(data)
 
     def _process(self, data: DataFrame, date: datetime, *args, **kwargs) -> DataFrame:
         # 1. 데이터 필터
-        self.logger.info("Filter data")
+        self.logger.info("Process: filter data")
         data = self.__filter(data)
 
         # 2. 카테고리 찾기
-        self.logger.info("Find categories")
+        self.logger.info("Process: find categories")
         data = self.__fill(data)
 
         # 1. 데이터 정제
-        self.logger.info("Normalize data")
+        self.logger.info("Process: normalize data")
         data = self.__normalize(data)
 
         # 2. 이름 기준으로 병합
-        self.logger.info("Merge data")
+        self.logger.info("Process: merge data")
         data = self.__merge(data)
 
         # 3. 병합 후 데이터 정제
-        self.logger.info("Post-merge data")
+        self.logger.info("Process: postmerge data")
         data = self.__post_merge(data)
 
         # 4. hostory 추가
-        self.logger.info("Append hostiries")
+        self.logger.info("Process append histories")
         data = self.__append_histories(data, date)
 
         return data
@@ -708,7 +712,9 @@ class ProductProcessor(ProcessorIfs):
         data.replace(np.nan, None, inplace=True)
         data = data.to_dict("records")
         errors = ServiceProductSchema().validate(data, many=True)
-        # TODO : Send error to slack
         if errors:
-            raise SchemaValidationError(errors)
+            self.logger.error(f"Service Product Schema Validation Error: {len(errors)}")
+            raise RuntimeError(
+                f"Service Product Schema Validation Error: {len(errors)}"
+            )
         return data

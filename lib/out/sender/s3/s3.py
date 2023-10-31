@@ -14,7 +14,7 @@ class S3Sender:
     def send(
         self,
         rel_name: str,
-        result: Mapping[Literal["data", "updated"], Sequence[Mapping[str, Any]]],
+        result: Mapping[Literal["data"], Sequence[Mapping[str, Any]]],
         *args,
         **kwargs,
     ) -> List[str]:
@@ -22,7 +22,6 @@ class S3Sender:
         Data를 100개씩 쪼개 {rel_name}_{idx}.json으로 전송
         """
         data = result["data"]
-        updated = result["updated"]
         result = []
         try:
             s3: Client = boto3.client("s3")
@@ -36,14 +35,6 @@ class S3Sender:
                     Body=body,
                 )
                 result.append(key)
-
-            key = f"{os.getenv('S3_KEY')}/{rel_name}_updated.json"
-            s3.put_object(
-                Bucket=os.getenv("S3_BUCKET"),
-                Key=key,
-                Body=json.dumps(updated, ensure_ascii=False).encode(),
-            )
-            result.append(key)
         except Exception as e:
             raise e
         else:

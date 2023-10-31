@@ -56,7 +56,7 @@ class Engine:
 
         results: Dict[
             Literal["events", "products"],
-            Mapping[Literal["data", "updated"], Sequence[Mapping[str, Any]]],
+            Mapping[Literal["data"], Sequence[Mapping[str, Any]]],
         ] = {}
         self.logger.info(f"Start processors: {list(processors.keys())}")
         for _type, processor in processors.items():
