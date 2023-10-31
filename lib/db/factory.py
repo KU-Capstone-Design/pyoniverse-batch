@@ -10,9 +10,7 @@ from lib.interface.repository_ifs import RepositoryIfs
 
 
 class RepositoryFactory:
-    logger = logging.getLogger("batch.factory")
-    logger.setLevel(logging.INFO)
-
+    logger = logging.getLogger(__name__)
     __clients = {}
 
     @classmethod
@@ -33,7 +31,9 @@ class RepositoryFactory:
                         client: MongoClient = MongoClient(os.getenv("MONGO_URI"))
                         client.admin.command("ping")
                     except ConnectionFailure:
-                        raise Exception("Can't connect to Server")
+                        raise RuntimeError(
+                            f"Can't connect to mongo Server: {os.getenv('MONGO_URI')}"
+                        )
                     else:
                         cls.logger.info(f"Connect to {_type} Client")
                         cls.__clients[_type] = client

@@ -1,13 +1,11 @@
 import logging
-import os
 from abc import ABCMeta, abstractmethod
 from typing import Any, List, Mapping, Optional
 
 
 class RepositoryIfs(metaclass=ABCMeta):
     def __init__(self, client: Any, db_name: str, *args, **kwargs):
-        self.logger = logging.getLogger(f"batch.repository.{db_name}")
-        self.__configure_logger()
+        self.logger = logging.getLogger(__name__)
         self._client = client
         self._db_name = db_name
 
@@ -47,10 +45,3 @@ class RepositoryIfs(metaclass=ABCMeta):
         **kwargs,
     ) -> List[Any]:
         pass
-
-    def __configure_logger(self):
-        match os.getenv("STAGE"):
-            case "prod":
-                self.logger.setLevel(logging.INFO)
-            case _:
-                self.logger.setLevel(logging.DEBUG)
