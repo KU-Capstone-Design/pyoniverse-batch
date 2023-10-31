@@ -29,21 +29,33 @@ class DBSender:
         )["QueueUrl"]
         try:
             self.logger.info(f"Send {len(data)} messages to {sqs_queue_url}")
-            for idx, datum in enumerate(data):
-                self.logger.info(f"{idx + 1}/{len(data)}...")
-                # 나눠서 보내기
-                message = Message(
-                    date=datetime.strftime(date, "%Y-%m-%d"),
-                    db_name=db_name,
-                    rel_name=rel_name,
-                    origin="transform",
-                    data=[datum],
-                )
-                sqs_client.send_message(
-                    QueueUrl=sqs_queue_url,
-                    MessageBody=json.dumps(asdict(message)),
-                )
-                sleep(10)
+            # for idx, datum in enumerate(data):
+            #     self.logger.info(f"{idx + 1}/{len(data)}...")
+            #     # 나눠서 보내기
+            #     message = Message(
+            #         date=datetime.strftime(date, "%Y-%m-%d"),
+            #         db_name=db_name,
+            #         rel_name=rel_name,
+            #         origin="transform",
+            #         data=[datum],
+            #     )
+            #     sqs_client.send_message(
+            #         QueueUrl=sqs_queue_url,
+            #         MessageBody=json.dumps(asdict(message)),
+            #     )
+
+            message = Message(
+                date=datetime.strftime(date, "%Y-%m-%d"),
+                db_name=db_name,
+                rel_name=rel_name,
+                origin="transform",
+                data=data,
+            )
+            sqs_client.send_message(
+                QueueUrl=sqs_queue_url,
+                MessageBody=json.dumps(asdict(message)),
+            )
+            sleep(10)
         except Exception as e:
             self.logger.error(f"Fail to send message to {sqs_queue_url}")
             raise RuntimeError(f"Fail to send message to {sqs_queue_url}")

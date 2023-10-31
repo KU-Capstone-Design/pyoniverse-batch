@@ -710,6 +710,14 @@ class ProductProcessor(ProcessorIfs):
         data = data[data["image"].notna()].copy()
         data.replace(np.nan, None, inplace=True)
         data["status"] = 2  # 현재 업데이트 되는 데이터의 status = 2
+        data["status"] = data["category"].map(
+            lambda x: 2 if pd.notna(x) else -1
+        )  # category = null이면 -1
+        data["status"] = data["brands"].map(
+            lambda x: 2
+            if len(reduce(lambda acc, cur: acc + cur["events"], x, [])) > 0
+            else -1
+        )  # event가 아무것도 없으면 -1
         data = data.to_dict("records")
         errors = ServiceProductSchema().validate(data, many=True)
         if errors:
