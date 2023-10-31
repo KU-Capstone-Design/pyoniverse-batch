@@ -1,7 +1,7 @@
 import logging
 import os
 from datetime import datetime
-from typing import Any, Dict, Literal, Mapping, Sequence
+from typing import Any, Dict, Literal, Mapping, NoReturn, Sequence
 
 from lib.domain.factory import ProcessorFactory
 from lib.interface.processor_ifs import ProcessorIfs
@@ -27,10 +27,9 @@ class Engine:
             raise ValueError(f"{date} should be like 2022-11-11")
 
         # Logger
-        self.logger = logging.getLogger("batch.engine")
-        self.__configure_logger()
+        self.logger = logging.getLogger(__name__)
 
-    def run(self) -> bool:
+    def run(self) -> NoReturn:
         """
         0. tmp 파일 지우기
         1. Processor 돌리기
@@ -39,6 +38,7 @@ class Engine:
         4. Slack 보내기
         5. 종료
         """
+        self.logger.info(f"Erase {os.getenv('S3_BUCKET')}.{os.getenv('S3_KEY')}")
         s3_eraser = S3Eraser()
         s3_eraser.erase()
 
@@ -57,52 +57,26 @@ class Engine:
             Mapping[Literal["data", "updated"], Sequence[Mapping[str, Any]]],
         ] = {}
         for _type, processor in processors.items():
-            try:
-                data = processor.run(date=self.__date)
-                results[_type] = data
-            except Exception as e:
-                # TODO : Send to slack
-                self.logger.error(f"{_type} processor: {e}")
-                return False
+            data = processor.run(date=self.__date)
+            results[_type] = data
 
         self.logger.info("Send to s3 tmp folder")
         s3_results: Dict[Literal["events", "brands", "products"], Sequence[str]] = {}
         for _type, data in results.items():
-            try:
-                s3_results[_type] = s3_sender.send(_type, data)
-            except Exception as e:
-                # TODO : Send to slack
-                self.logger.error(f"{_type} s3 sender: {e}")
-                return False
+            s3_results[_type] = s3_sender.send(_type, data)
 
         self.logger.info("Send to db messages")
         for _type, data in s3_results.items():
-            try:
-                db_sender.send(
-                    date=self.__date,
-                    rel_name=_type,
-                    db_name=os.getenv("MONGO_SERVICE_DB"),
-                    data=data,
-                )
-            except Exception as e:
-                self.logger.error(f"{_type} db sender: {e}")
-                return False
+            db_sender.send(
+                date=self.__date,
+                rel_name=_type,
+                db_name=os.getenv("MONGO_SERVICE_DB"),
+                data=data,
+            )
 
         # Finish Event Send
         self.logger.info("Send finish event")
-        try:
-            res = event_sender.send(event_type="finished", date=self.__date)
-            if not res:
-                raise RuntimeError("Failed to send event")
-        except Exception as e:
-            self.logger.error(f"{_type} event sender: {e}")
-            return False
+        res = event_sender.send(event_type="finished", date=self.__date)
+        if not res:
+            raise RuntimeError("Failed to send event")
         self.logger.info("Done")
-        return True
-
-    def __configure_logger(self):
-        match self.__stage:
-            case "prod":
-                self.logger.setLevel(logging.INFO)
-            case _:
-                self.logger.setLevel(logging.DEBUG)
