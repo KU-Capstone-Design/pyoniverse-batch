@@ -9,7 +9,17 @@ from boto3_type_annotations.s3 import Client
 
 class S3Sender:
     def __init__(self, *args, **kwargs):
-        self.logger = logging.getLogger("scrapy.sender")
+        self.logger = logging.getLogger(__name__)
+        self.__bucket = os.getenv("S3_BUCKET")
+        self.__key = os.getenv("S3_KEY")
+
+        if not self.__bucket or not self.__key:
+            self.logger.error(
+                f"bucket: {self.__bucket}, key: {self.__key} shouldn't be none"
+            )
+            raise RuntimeError(
+                f"bucket: {self.__bucket}, key: {self.__key} shouldn't be none"
+            )
 
     def send(
         self,
@@ -28,14 +38,15 @@ class S3Sender:
             for idx, p in enumerate(range(0, len(data), 100)):
                 buffer = data[p : p + 100]
                 body: bytes = json.dumps(buffer, ensure_ascii=False).encode()
-                key = f"{os.getenv('S3_KEY')}/{rel_name}_{idx}.json"
+                key = f"{self.__key}/{rel_name}_{idx}.json"
                 s3.put_object(
-                    Bucket=os.getenv("S3_BUCKET"),
+                    Bucket=self.__bucket,
                     Key=key,
                     Body=body,
                 )
                 result.append(key)
         except Exception as e:
-            raise e
+            self.logger.error("Fail to upload result to s3")
+            raise RuntimeError("Fail to upload result to s3")
         else:
             return result

@@ -9,7 +9,6 @@ from lib.out.eraser.s3_eraser import S3Eraser
 from lib.out.sender.db.db import DBSender
 from lib.out.sender.event.event import EventSender
 from lib.out.sender.s3.s3 import S3Sender
-from lib.out.sender.slack.slack import SlackSender
 
 
 class Engine:
@@ -45,7 +44,6 @@ class Engine:
         s3_eraser.erase()
 
         s3_sender = S3Sender()
-        slack_sender = SlackSender()
         db_sender = DBSender()
         event_sender = EventSender()
 
@@ -82,8 +80,6 @@ class Engine:
 
         if self.__stage != "test":
             self.logger.info("Broadcast the finished event")
-            res = event_sender.send(event_type="finished", date=self.__date)
-            if not res:
-                raise RuntimeError("Failed to send event")
+            event_sender.send(event_type="finished", date=self.__date)
         else:
             self.logger.info("Don't send db update messages when TEST mode")

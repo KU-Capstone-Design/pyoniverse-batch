@@ -16,7 +16,6 @@ from lib.db.factory import RepositoryFactory
 from lib.domain.product.model.crawled_product_schema import CrawledProductSchema
 from lib.domain.product.model.service_product_schema import ServiceProductSchema
 from lib.downloader.downloader import Downloader
-from lib.error.processor import SchemaValidationError
 from lib.interface.processor_ifs import ProcessorIfs
 from lib.interface.repository_ifs import RepositoryIfs
 
