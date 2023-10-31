@@ -67,7 +67,7 @@ class EventProcessor(ProcessorIfs):
                 "start_at",
                 "end_at",
             ]
-        ]
+        ].copy()
         data["status"] = 2  # 현재 업데이트 되는 데이터의 status = 2
         data = data.to_dict("records")
         errors = ServiceBrandEventSchema().validate(data, many=True)
