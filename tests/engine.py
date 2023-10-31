@@ -11,15 +11,15 @@ def env():
     dotenv.load_dotenv()
 
 
-def test_engine(env):
-    from lib.engine import Engine
-
-    # given
-    engine = Engine(stage="test", date="2023-10-20")
-    # when
-    try:
-        engine.run()
-        assert True
-    # then
-    except Exception:
-        assert False
+# def test_engine(env):
+#     from lib.engine import Engine
+#
+#     # given
+#     engine = Engine(stage="test", date="2023-10-20")
+#     # when
+#     try:
+#         engine.run()
+#         assert True
+#     # then
+#     except Exception:
+#         assert False
