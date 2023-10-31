@@ -1,10 +1,8 @@
-import os
 from typing import Any, List, Mapping, Optional
 
 from overrides import override
-from pymongo import MongoClient, ReadPreference
+from pymongo import ReadPreference
 from pymongo.database import Database
-from pymongo.errors import ConnectionFailure
 
 from lib.interface.repository_ifs import RepositoryIfs
 
@@ -32,7 +30,7 @@ class MongoRepository(RepositoryIfs):
             filter=filter, projection=project, hint=hint
         )
         if not data:
-            self.logger.debug(f"{rel_name}: {filter} Not Found")
+            self.logger.info(f"{self._db_name}.{rel_name}: {filter} Not Found")
         return data
 
     @override
@@ -69,7 +67,7 @@ class MongoRepository(RepositoryIfs):
                 .hint(hint)
             )
         if not data:
-            self.logger.debug(f"{rel_name}: {filter} Not Found")
+            self.logger.info(f"{self._db_name}.{rel_name}: {filter} Not Found")
         return data
 
     @override
@@ -83,5 +81,5 @@ class MongoRepository(RepositoryIfs):
     ) -> List[Any]:
         data = self.read_db[rel_name].distinct(key=attr_name, filter=filter)
         if not data:
-            self.logger.debug(f"{rel_name}: {filter} Not Found")
+            self.logger.info(f"{self._db_name}.{rel_name}: {filter} Not Found")
         return data

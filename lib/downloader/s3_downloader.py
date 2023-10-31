@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime
 from io import BytesIO
@@ -12,6 +13,7 @@ from bson import decode_iter
 class S3Downloader:
     def __init__(self):
         self.__s3: ServiceResource = boto3.resource("s3")
+        self.logger = logging.getLogger(__name__)
 
     def download(self, db_name: str, rel_name: str, date: datetime) -> Iterator[dict]:
         date = date.strftime("%Y-%m-%d")  # 2022-11-11 형식
@@ -19,7 +21,10 @@ class S3Downloader:
         data = []
         bucket = os.getenv("S3_BACKUP_BUCKET")
         if not bucket:
-            raise KeyError(f"{bucket} doesn't exist")
+            self.logger.error(f"{bucket} doesn't exist")
+            raise RuntimeError(f"{bucket} doesn't exist")
+
+        self.logger.info(f"Download s3://{bucket}/{key}")
         for obj in self.__s3.Bucket(bucket).objects.filter(Prefix=key):
             if not obj.key.endswith(".bson"):
                 continue

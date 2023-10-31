@@ -1,7 +1,7 @@
 import logging
 import os
 from datetime import datetime
-from typing import Any, Dict, Literal, Mapping, Sequence
+from typing import Any, Dict, Literal, Mapping, NoReturn, Sequence
 
 from lib.domain.factory import ProcessorFactory
 from lib.interface.processor_ifs import ProcessorIfs
@@ -9,7 +9,6 @@ from lib.out.eraser.s3_eraser import S3Eraser
 from lib.out.sender.db.db import DBSender
 from lib.out.sender.event.event import EventSender
 from lib.out.sender.s3.s3 import S3Sender
-from lib.out.sender.slack.slack import SlackSender
 
 
 class Engine:
@@ -27,10 +26,9 @@ class Engine:
             raise ValueError(f"{date} should be like 2022-11-11")
 
         # Logger
-        self.logger = logging.getLogger("batch.engine")
-        self.__configure_logger()
+        self.logger = logging.getLogger(__name__)
 
-    def run(self) -> bool:
+    def run(self) -> NoReturn:
         """
         0. tmp 파일 지우기
         1. Processor 돌리기
@@ -39,70 +37,49 @@ class Engine:
         4. Slack 보내기
         5. 종료
         """
-        s3_eraser = S3Eraser()
+        tmp_bucket = os.getenv("S3_BUCKET")
+        tmp_key = os.getenv("S3_KEY")
+        self.logger.info(f"Erase {tmp_bucket}/{tmp_key}")
+        s3_eraser = S3Eraser(bucket=tmp_bucket, key=tmp_key)
         s3_eraser.erase()
 
         s3_sender = S3Sender()
-        slack_sender = SlackSender()
         db_sender = DBSender()
         event_sender = EventSender()
 
-        processors: Dict[Literal["events", "brands", "products"], ProcessorIfs] = {}
-        self.logger.info("Processing start")
-        for _type in ["events", "products"]:
-            processors[_type] = ProcessorFactory.get_instance(_type=_type)
+        processors: Dict[Literal["events", "products"], ProcessorIfs] = {
+            "events": ProcessorFactory.get_instance(_type="events"),
+            "products": ProcessorFactory.get_instance(_type="products"),
+        }
 
         results: Dict[
-            Literal["events", "brands", "products"],
-            Mapping[Literal["data", "updated"], Sequence[Mapping[str, Any]]],
+            Literal["events", "products"],
+            Mapping[Literal["data"], Sequence[Mapping[str, Any]]],
         ] = {}
+        self.logger.info(f"Start processors: {list(processors.keys())}")
         for _type, processor in processors.items():
-            try:
-                data = processor.run(date=self.__date)
-                results[_type] = data
-            except Exception as e:
-                # TODO : Send to slack
-                self.logger.error(f"{_type} processor: {e}")
-                return False
+            data = processor.run(date=self.__date)
+            results[_type] = data
 
-        self.logger.info("Send to s3 tmp folder")
-        s3_results: Dict[Literal["events", "brands", "products"], Sequence[str]] = {}
+        self.logger.info(f"Send results to s3://{tmp_bucket}/{tmp_key}")
+        s3_results: Dict[Literal["events", "products"], Sequence[str]] = {}
         for _type, data in results.items():
-            try:
-                s3_results[_type] = s3_sender.send(_type, data)
-            except Exception as e:
-                # TODO : Send to slack
-                self.logger.error(f"{_type} s3 sender: {e}")
-                return False
+            s3_results[_type] = s3_sender.send(_type, data)
 
-        self.logger.info("Send to db messages")
-        for _type, data in s3_results.items():
-            try:
+        if self.__stage != "test":
+            self.logger.info("Send db update messages")
+            for _type, data in s3_results.items():
                 db_sender.send(
                     date=self.__date,
                     rel_name=_type,
                     db_name=os.getenv("MONGO_SERVICE_DB"),
                     data=data,
                 )
-            except Exception as e:
-                self.logger.error(f"{_type} db sender: {e}")
-                return False
+        else:
+            self.logger.info("Don't send db update messages when TEST mode")
 
-        # Finish Event Send
-        self.logger.info("Send finish event")
-        try:
-            res = event_sender.send(event_type="finished", date=self.__date)
-            if not res:
-                raise RuntimeError("Failed to send event")
-        except Exception as e:
-            self.logger.error(f"{_type} event sender: {e}")
-            return False
-        self.logger.info("Done")
-        return True
-
-    def __configure_logger(self):
-        match self.__stage:
-            case "prod":
-                self.logger.setLevel(logging.INFO)
-            case _:
-                self.logger.setLevel(logging.DEBUG)
+        if self.__stage != "test":
+            self.logger.info("Broadcast the finished event")
+            event_sender.send(event_type="finished", date=self.__date)
+        else:
+            self.logger.info("Don't send db update messages when TEST mode")

@@ -9,7 +9,6 @@ from pandas import DataFrame
 from lib.db.factory import RepositoryFactory
 from lib.domain.event.model.crawled_event_schema import CrawledBrandEventSchema
 from lib.domain.event.model.service_event_schema import ServiceBrandEventSchema
-from lib.error.processor import SchemaValidationError
 from lib.interface.processor_ifs import ProcessorIfs
 from lib.interface.repository_ifs import RepositoryIfs
 
@@ -26,13 +25,11 @@ class EventProcessor(ProcessorIfs):
             rel_name=self._name,
             project={"_id": False, "created_at": False, "updated_at": False},
         )
-        self.logger.info(f"Data: {len(data)}")
         errors = CrawledBrandEventSchema().validate(data, many=True)
-        # TODO : Send error to slack
         if errors:
-            raise SchemaValidationError(errors)
-        # for error, reason in errors.items():
-        #     self.logger.error(f"{error}: {reason}")
+            self.logger.error(f"Crawling Event Schema Validation Error: {len(errors)}")
+            raise RuntimeError(f"Crawling Event Schema Validation Error: {len(errors)}")
+        self.logger.info(f"Initial data: {len(data)}")
         return DataFrame(data)
 
     def _process(self, data: DataFrame, date: datetime, *args, **kwargs) -> DataFrame:
@@ -73,7 +70,7 @@ class EventProcessor(ProcessorIfs):
         ]
         data = data.to_dict("records")
         errors = ServiceBrandEventSchema().validate(data, many=True)
-        # TODO : Send error to slack
         if errors:
-            raise SchemaValidationError(errors)
+            self.logger.error(f"Service Event Schema Validation Error: {len(errors)}")
+            raise RuntimeError(f"Service Event Schema Validation Error: {len(errors)}")
         return data

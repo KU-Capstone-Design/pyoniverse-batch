@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from dataclasses import asdict
 from datetime import datetime
@@ -12,6 +13,9 @@ from lib.out.sender.db.model.message import Message
 
 
 class DBSender:
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+
     def send(
         self,
         date: datetime,
@@ -19,19 +23,21 @@ class DBSender:
         rel_name: str,
         data: Sequence[str],
     ) -> NoReturn:
+        sqs_client: Client = boto3.client("sqs")
+        sqs_queue_url: str = sqs_client.get_queue_url(
+            QueueName=os.getenv("DB_QUEUE_NAME")
+        )["QueueUrl"]
         try:
-            sqs_client: Client = boto3.client("sqs")
-            sqs_queue_url: str = sqs_client.get_queue_url(
-                QueueName=os.getenv("DB_QUEUE_NAME")
-            )["QueueUrl"]
-            for p in range(0, len(data), 10):
+            self.logger.info(f"Send {len(data)} messages to {sqs_queue_url}")
+            for idx, datum in enumerate(data):
+                self.logger.info(f"{idx + 1}/{len(data)}...")
                 # 나눠서 보내기
                 message = Message(
                     date=datetime.strftime(date, "%Y-%m-%d"),
                     db_name=db_name,
                     rel_name=rel_name,
                     origin="transform",
-                    data=data[p : p + 10],
+                    data=[datum],
                 )
                 sqs_client.send_message(
                     QueueUrl=sqs_queue_url,
@@ -39,4 +45,5 @@ class DBSender:
                 )
                 sleep(10)
         except Exception as e:
-            raise e
+            self.logger.error(f"Fail to send message to {sqs_queue_url}")
+            raise RuntimeError(f"Fail to send message to {sqs_queue_url}")

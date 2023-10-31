@@ -17,6 +17,9 @@ def test_engine(env):
     # given
     engine = Engine(stage="test", date="2023-10-20")
     # when
-    res = engine.run()
+    try:
+        engine.run()
+        assert True
     # then
-    assert res is True
+    except Exception:
+        assert False
