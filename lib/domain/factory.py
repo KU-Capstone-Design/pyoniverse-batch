@@ -7,9 +7,7 @@ from lib.interface.processor_ifs import ProcessorIfs
 
 class ProcessorFactory:
     @classmethod
-    def get_instance(
-        cls, _type: Literal["events", "products", "brands"]
-    ) -> ProcessorIfs:
+    def get_instance(cls, _type: Literal["events", "products"]) -> ProcessorIfs:
         match _type:
             case "events":
                 return EventProcessor()

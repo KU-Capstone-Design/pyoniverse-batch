@@ -38,8 +38,10 @@ class Engine:
         4. Slack 보내기
         5. 종료
         """
-        self.logger.info(f"Erase {os.getenv('S3_BUCKET')}.{os.getenv('S3_KEY')}")
-        s3_eraser = S3Eraser()
+        tmp_bucket = os.getenv("S3_BUCKET")
+        tmp_key = os.getenv("S3_KEY")
+        self.logger.info(f"Erase {tmp_bucket}/{tmp_key}")
+        s3_eraser = S3Eraser(bucket=tmp_bucket, key=tmp_key)
         s3_eraser.erase()
 
         s3_sender = S3Sender()
@@ -47,36 +49,41 @@ class Engine:
         db_sender = DBSender()
         event_sender = EventSender()
 
-        processors: Dict[Literal["events", "brands", "products"], ProcessorIfs] = {}
-        self.logger.info("Processing start")
-        for _type in ["events", "products"]:
-            processors[_type] = ProcessorFactory.get_instance(_type=_type)
+        processors: Dict[Literal["events", "products"], ProcessorIfs] = {
+            "events": ProcessorFactory.get_instance(_type="events"),
+            "products": ProcessorFactory.get_instance(_type="products"),
+        }
 
         results: Dict[
-            Literal["events", "brands", "products"],
+            Literal["events", "products"],
             Mapping[Literal["data", "updated"], Sequence[Mapping[str, Any]]],
         ] = {}
+        self.logger.info(f"Start processors: {list(processors.keys())}")
         for _type, processor in processors.items():
             data = processor.run(date=self.__date)
             results[_type] = data
 
-        self.logger.info("Send to s3 tmp folder")
-        s3_results: Dict[Literal["events", "brands", "products"], Sequence[str]] = {}
+        self.logger.info(f"Send results to s3://{tmp_bucket}/{tmp_key}")
+        s3_results: Dict[Literal["events", "products"], Sequence[str]] = {}
         for _type, data in results.items():
             s3_results[_type] = s3_sender.send(_type, data)
 
-        self.logger.info("Send to db messages")
-        for _type, data in s3_results.items():
-            db_sender.send(
-                date=self.__date,
-                rel_name=_type,
-                db_name=os.getenv("MONGO_SERVICE_DB"),
-                data=data,
-            )
+        if self.__stage != "test":
+            self.logger.info("Send db update messages")
+            for _type, data in s3_results.items():
+                db_sender.send(
+                    date=self.__date,
+                    rel_name=_type,
+                    db_name=os.getenv("MONGO_SERVICE_DB"),
+                    data=data,
+                )
+        else:
+            self.logger.info("Don't send db update messages when TEST mode")
 
-        # Finish Event Send
-        self.logger.info("Send finish event")
-        res = event_sender.send(event_type="finished", date=self.__date)
-        if not res:
-            raise RuntimeError("Failed to send event")
-        self.logger.info("Done")
+        if self.__stage != "test":
+            self.logger.info("Broadcast the finished event")
+            res = event_sender.send(event_type="finished", date=self.__date)
+            if not res:
+                raise RuntimeError("Failed to send event")
+        else:
+            self.logger.info("Don't send db update messages when TEST mode")

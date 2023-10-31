@@ -1,4 +1,5 @@
 import logging
+import traceback
 from argparse import ArgumentParser
 
 from lib.dependency_injector.injector import MainInjector
@@ -20,7 +21,9 @@ if __name__ == "__main__":
     try:
         engine = Engine(stage=args.stage, date=args.date)
         res = engine.run()
+        logger.info("Normal exit")
         exit(0)
     except Exception as e:
-        logger.error(e)
+        tb = traceback.format_exc()
+        logger.error(f"Abnormal exit: {tb}")
         exit(1)  # 비정상 종료
