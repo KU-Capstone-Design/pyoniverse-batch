@@ -16,7 +16,12 @@ class Engine:
     Main Module
     """
 
-    def __init__(self, stage: Literal["dev", "test", "prod"], date: str):
+    def __init__(
+        self,
+        stage: Literal["dev", "test", "prod"],
+        date: str,
+        domain: Literal["all", "event", "product"],
+    ):
         if stage not in {"dev", "test", "prod"}:
             raise AttributeError(f"{stage} not in [dev, test, prod]")
         self.__stage = stage
@@ -24,6 +29,10 @@ class Engine:
             self.__date = datetime.strptime(date, "%Y-%m-%d")
         except ValueError:
             raise ValueError(f"{date} should be like 2022-11-11")
+
+        if domain not in {"all", "events", "products"}:
+            raise AttributeError(f"{domain} not in [all, events, products]")
+        self.__domain = domain
 
         # Logger
         self.logger = logging.getLogger(__name__)
@@ -47,10 +56,11 @@ class Engine:
         db_sender = DBSender()
         event_sender = EventSender()
 
-        processors: Dict[Literal["events", "products"], ProcessorIfs] = {
-            "events": ProcessorFactory.get_instance(_type="events"),
-            "products": ProcessorFactory.get_instance(_type="products"),
-        }
+        processors: Dict[Literal["events", "products"], ProcessorIfs] = {}
+        if self.__domain in {"all", "events"}:
+            processors["events"] = ProcessorFactory.get_instance(_type="events")
+        if self.__domain in {"all", "products"}:
+            processors["products"] = ProcessorFactory.get_instance(_type="products")
 
         results: Dict[
             Literal["events", "products"],

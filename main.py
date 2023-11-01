@@ -11,15 +11,24 @@ parser = ArgumentParser(
     description="Spark 를 이용한 데이터 정제 및 저장",
     epilog="created by @yeongro",
 )
-parser.add_argument("--stage", choices=["dev", "test", "prod"])
-parser.add_argument("--date", help="실행된 날짜 정보. yyyy-MM-dd 형식 ex) 2023-11-11")
+parser.add_argument("--stage", choices=["dev", "test", "prod"], required=True)
+parser.add_argument(
+    "--date", help="실행된 날짜 정보. yyyy-MM-dd 형식 ex) 2023-11-11", required=True
+)
+parser.add_argument(
+    "--domain",
+    choices=["all", "events", "products"],
+    default="all",
+    help="실행할 프로세서 정보: default = all",
+    required=False,
+)
 if __name__ == "__main__":
     args = parser.parse_args()
     main_injector = MainInjector()
     main_injector.inject()
     logger = logging.getLogger(__name__)
     try:
-        engine = Engine(stage=args.stage, date=args.date)
+        engine = Engine(stage=args.stage, date=args.date, domain=args.domain)
         res = engine.run()
         logger.info("Normal exit")
         exit(0)
