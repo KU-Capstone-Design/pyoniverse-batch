@@ -46,7 +46,7 @@ class EventProcessor(ProcessorIfs):
                 ],
             }
         )
-        data = data[data["image"].map(lambda x: pd.notna(x["thumb"]))]
+        data = data[data["image"].map(lambda x: pd.notna(x["thumb"]))].copy()
         data["brand"] = data["crawled_info"].map(lambda x: x["brand"])
 
         # 2. crawled_infos
