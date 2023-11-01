@@ -652,10 +652,6 @@ class ProductProcessor(ProcessorIfs):
                 inplace=True,
             )
             # merge
-            # 1. dm -> 덴마크로 이름 변환
-            previous_df["name"] = previous_df["name"].map(
-                lambda x: x.replace("dm)", "덴마크)")
-            )
             data = data.merge(previous_df, on="name", how="left", validate="one_to_one")
             data["previous_crawled_infos"] = data["previous_crawled_infos"].map(
                 lambda x: x if isinstance(x, list) else []
