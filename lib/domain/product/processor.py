@@ -640,7 +640,7 @@ class ProductProcessor(ProcessorIfs):
                 )
                 previous_df["histories"] = [[]] * len(previous_df)
         except StopIteration as e:
-            self.logger.error("Previous Data doesn't exist")
+            self.logger.info("Previous Data doesn't exist")
             data["histories"] = [[]] * len(data)
             return data
         else:
