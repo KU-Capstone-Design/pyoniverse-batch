@@ -1,17 +1,8 @@
 import os
 
-import pytest
 from pymongo import MongoClient
 
-
-@pytest.fixture
-def env():
-    import os
-    import dotenv
-
-    while "tests" not in os.listdir():
-        os.chdir("..")
-    dotenv.load_dotenv()
+from tests.mock import env
 
 
 def test_mongo_repository(env):
