@@ -1,25 +1,15 @@
-import pytest
+from tests.mock import env, injector
 
 
-@pytest.fixture
-def env():
-    import os
-    import dotenv
+def test_engine(env, injector):
+    from lib.engine import Engine
 
-    while "tests" not in os.listdir():
-        os.chdir("..")
-    dotenv.load_dotenv()
-
-
-# def test_engine(env):
-#     from lib.engine import Engine
-#
-#     # given
-#     engine = Engine(stage="test", date="2023-10-20")
-#     # when
-#     try:
-#         engine.run()
-#         assert True
-#     # then
-#     except Exception:
-#         assert False
+    # given
+    engine = Engine(stage="test", date="2023-10-20", domain="all")
+    # when
+    try:
+        engine.run()
+        assert True
+    # then
+    except Exception:
+        assert False

@@ -75,7 +75,6 @@ class Engine:
         s3_results: Dict[Literal["events", "products"], Sequence[str]] = {}
         for _type, data in results.items():
             s3_results[_type] = s3_sender.send(_type, data)
-
         if self.__stage != "test":
             self.logger.info("Send db update messages")
             for _type, data in s3_results.items():

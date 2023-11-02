@@ -3,16 +3,7 @@ from datetime import datetime
 import pytest
 
 from lib.domain.product.processor import ProductProcessor
-
-
-@pytest.fixture
-def env():
-    import os
-    import dotenv
-
-    while "tests" not in os.listdir():
-        os.chdir("..")
-    dotenv.load_dotenv()
+from tests.mock import env
 
 
 @pytest.fixture
