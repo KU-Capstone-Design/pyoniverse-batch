@@ -34,12 +34,8 @@ class ProductProcessor(ProcessorIfs):
         )
         errors = CrawledProductSchema().validate(data, many=True)
         if errors:
-            self.logger.error(
-                f"Crawling Product Schema Validation Error: {len(errors)}"
-            )
-            raise RuntimeError(
-                f"Crawling Product Schema Validation Error: {len(errors)}"
-            )
+            self.logger.error(f"Crawling Product Schema Validation Error: {len(errors)}")
+            raise RuntimeError(f"Crawling Product Schema Validation Error: {len(errors)}")
         self.logger.info(f"Initial data: {len(data)}")
         return DataFrame(data)
 
@@ -84,9 +80,7 @@ class ProductProcessor(ProcessorIfs):
         return data
 
     def __fill(self, data: DataFrame, *args, **kwargs) -> DataFrame:
-        data["category"] = data[["category", "tags", "name"]].apply(
-            self.__fill_category, axis=1
-        )
+        data["category"] = data[["category", "tags", "name"]].apply(self.__fill_category, axis=1)
         return data
 
     def __fill_category(self, row: Series) -> Optional[int]:
@@ -493,9 +487,7 @@ class ProductProcessor(ProcessorIfs):
             data[column] = data[column].map(
                 lambda x: list(
                     filter(
-                        lambda y: isinstance(y, list)
-                        or isinstance(y, dict)
-                        or pd.notna(y),
+                        lambda y: isinstance(y, list) or isinstance(y, dict) or pd.notna(y),
                         x,
                     )
                 )
@@ -507,14 +499,10 @@ class ProductProcessor(ProcessorIfs):
         # 1. image
         data["image"] = data["image"].map(self.__get_largest_image)
         # 2. description
-        data["description"] = data["description"].map(
-            lambda x: x[0] if len(x) > 0 else None
-        )
+        data["description"] = data["description"].map(lambda x: x[0] if len(x) > 0 else None)
         # 3. category
         data["category"] = data["category"].map(
-            lambda x: Counter(filter(pd.notna, x)).most_common(1)[0][0]
-            if Counter(filter(pd.notna, x))
-            else None,
+            lambda x: Counter(filter(pd.notna, x)).most_common(1)[0][0] if Counter(filter(pd.notna, x)) else None,
         )
         # 4. brand 별 정제
         data["brands"] = data.apply(self.__collect_by_brand, axis=1)
@@ -523,9 +511,7 @@ class ProductProcessor(ProcessorIfs):
         data["recommendation"] = [{"products": [], "events": []}] * len(data)
 
         # 기본 가격 = 최대 가격
-        data["price"] = data["brands"].map(
-            lambda x: max([y["price"]["value"] for y in x])
-        )
+        data["price"] = data["brands"].map(lambda x: max([y["price"]["value"] for y in x]))
         data["best"] = data[["price", "brands"]].apply(self.__get_best, axis=1)
         return data
 
@@ -539,8 +525,7 @@ class ProductProcessor(ProcessorIfs):
         )
         other_images = reduce(lambda acc, cur: acc + cur["others"], images, [])
         other_sizes = reduce(
-            lambda acc, cur: acc
-            + list(map(lambda x: x["width"] * x["height"], cur["size"]["others"])),
+            lambda acc, cur: acc + list(map(lambda x: x["width"] * x["height"], cur["size"]["others"])),
             filter(lambda y: "others" in y["size"], images),
             [],
         )
@@ -560,9 +545,7 @@ class ProductProcessor(ProcessorIfs):
             brand_id = crawled_info["brand"]
             if brand_id not in brands:
                 price = row["price"][idx]
-                brand_events = [
-                    e["id"] for e in row["events"] if e["brand"] == brand_id
-                ]
+                brand_events = [e["id"] for e in row["events"] if e["brand"] == brand_id]
                 brands[brand_id] = {
                     "id": brand_id,
                     "price": price,
@@ -572,12 +555,58 @@ class ProductProcessor(ProcessorIfs):
                 price = row["price"][idx]
                 brands[brand_id]["price"] = {
                     "value": brands[brand_id]["price"]["value"] or price["value"],
-                    "currency": brands[brand_id]["price"]["currency"]
-                    or price["currency"],
-                    "discounted_value": brands[brand_id]["price"]["discounted_value"]
-                    or price["discounted_value"],
+                    "currency": brands[brand_id]["price"]["currency"] or price["currency"],
+                    "discounted_value": brands[brand_id]["price"]["discounted_value"] or price["discounted_value"],
                 }
-        return list(brands.values())
+        # [{id: .., price: {value: .., currency: .., discounted_value: ..}, events: [..]}] 형식
+        result = list(brands.values())
+        for brand in result:
+            # find discounted_value
+            brand["price"]["discounted_value"] = self.__get_discounted_price(
+                price=brand["price"], events=brand["events"]
+            )
+        return result
+
+    def __get_discounted_price(self, price: dict, events: List[int]) -> float | None:
+        """
+        :param price: {value: float, discounted_value: float | None, currency: int}
+        :param events: [event_id, ..]
+        :return:
+            value != discounted_value: discounted_value
+            value == discounted_value: None
+        @desc
+        1+1, 2+1, 3+1 이벤트일 때, 1개당 가격을 계산하여 discounted_value로 결정한다.
+        그 외에는 discounted_value 가 있는지 확인 후, 위의 반환 규칙에 맞춰 반환한다.
+        """
+        # Hypothesis: 1+1, 2+1, 3+1 이벤트는 중복되지 않는다.
+        # 1+1: 1, 2+1: 2, 3+1: 8
+        event = next(filter(lambda x: x in {1, 2, 8}, events), None)
+        if event is None:
+            if discounted_value := price["discounted_value"]:
+                if price["value"] == discounted_value:
+                    return None
+                else:
+                    return discounted_value
+            else:
+                return None
+        elif event == 1:
+            # 1+1
+            discounted_value = round(price["value"] / 2, 2)
+        elif event == 2:
+            # 2+1
+            discounted_value = round(price["value"] / 3, 2)
+        else:
+            # 3+1
+            discounted_value = round(price["value"] / 4, 2)
+
+        # 이미 할인 가격이 있는지 확인 후 최소 가격 선택
+        if price["discounted_value"]:
+            discounted_value = min(discounted_value, price["discounted_value"])
+        # return
+        if discounted_value < price["value"]:
+            return discounted_value
+        else:
+            return None
 
     def __get_best(self, row: Series):
         default_price = row["price"]
@@ -623,9 +652,7 @@ class ProductProcessor(ProcessorIfs):
 
     def __append_histories(self, data: DataFrame, date: datetime) -> DataFrame:
         downloader = Downloader()
-        previous_data = downloader.download(
-            db_name=os.getenv("MONGO_SERVICE_DB"), rel_name=self._name, date=date
-        )
+        previous_data = downloader.download(db_name=os.getenv("MONGO_SERVICE_DB"), rel_name=self._name, date=date)
         try:
             check = next(previous_data)
             previous_data = chain([check], previous_data)
@@ -635,9 +662,7 @@ class ProductProcessor(ProcessorIfs):
                     columns=["crawled_infos", "name", "brands", "histories"],
                 )
             else:
-                previous_df = DataFrame(
-                    previous_data, columns=["crawled_infos", "name", "brands"]
-                )
+                previous_df = DataFrame(previous_data, columns=["crawled_infos", "name", "brands"])
                 previous_df["histories"] = [[]] * len(previous_df)
         except StopIteration as e:
             self.logger.info("Previous Data doesn't exist")
@@ -656,21 +681,13 @@ class ProductProcessor(ProcessorIfs):
             data["previous_crawled_infos"] = data["previous_crawled_infos"].map(
                 lambda x: x if isinstance(x, list) else []
             )
-            data["tmp_crawled_info"] = data[
-                ["crawled_info", "previous_crawled_infos"]
-            ].apply(
-                lambda x: {
-                    (c["spider"], c["id"], c["url"]) for c in chain.from_iterable(x)
-                },
+            data["tmp_crawled_info"] = data[["crawled_info", "previous_crawled_infos"]].apply(
+                lambda x: {(c["spider"], c["id"], c["url"]) for c in chain.from_iterable(x)},
                 axis=1,
             )
             # Check (spider, id) is unique
             actual_length = data["tmp_crawled_info"].map(lambda x: len(x)).sum()
-            expected_length = (
-                data["tmp_crawled_info"]
-                .map(lambda x: len([(c[0], c[1]) for c in x]))
-                .sum()
-            )
+            expected_length = data["tmp_crawled_info"].map(lambda x: len([(c[0], c[1]) for c in x])).sum()
             assert actual_length == expected_length
 
             data["crawled_info"] = data["tmp_crawled_info"].map(
@@ -678,31 +695,20 @@ class ProductProcessor(ProcessorIfs):
             )
             data.drop(columns=["tmp_crawled_info"], inplace=True)
             # history 추가
-            data["histories"] = data["histories"].map(
-                lambda x: x if isinstance(x, list) else []
-            )
+            data["histories"] = data["histories"].map(lambda x: x if isinstance(x, list) else [])
             data["histories"] = data[["histories", "previous_brands"]].apply(
-                lambda x: x["histories"]
-                + [{"date": date.strftime("%Y-%m-%d"), "brands": x["previous_brands"]}]
+                lambda x: x["histories"] + [{"date": date.strftime("%Y-%m-%d"), "brands": x["previous_brands"]}]
                 if isinstance(x["previous_brands"], list)
                 else x["histories"],
                 axis=1,
             )
             # Deduplicate histories
-            data["histories"] = data["histories"].map(
-                lambda x: {y["date"]: y["brands"] for y in x}
-            )
-            data["histories"] = data["histories"].map(
-                lambda x: [{"date": k, "brands": v} for k, v in x.items()]
-            )
-            data.drop(
-                columns=["previous_brands", "previous_crawled_infos"], inplace=True
-            )
+            data["histories"] = data["histories"].map(lambda x: {y["date"]: y["brands"] for y in x})
+            data["histories"] = data["histories"].map(lambda x: [{"date": k, "brands": v} for k, v in x.items()])
+            data.drop(columns=["previous_brands", "previous_crawled_infos"], inplace=True)
             return data
 
-    def _postprocess(
-        self, data: DataFrame, date: datetime, *args, **kwargs
-    ) -> Sequence[Mapping[str, Any]]:
+    def _postprocess(self, data: DataFrame, date: datetime, *args, **kwargs) -> Sequence[Mapping[str, Any]]:
         # 3. 상용 데이터로 변환
         data.rename(columns={"crawled_info": "crawled_infos"}, inplace=True)
         data.drop(
@@ -713,19 +719,13 @@ class ProductProcessor(ProcessorIfs):
         data = data[data["image"].notna()].copy()
         data.replace(np.nan, None, inplace=True)
         data["status"] = 2  # 현재 업데이트 되는 데이터의 status = 2
-        data["status"] = data["category"].map(
-            lambda x: 2 if pd.notna(x) else -1
-        )  # category = null이면 -1
+        data["status"] = data["category"].map(lambda x: 2 if pd.notna(x) else -1)  # category = null이면 -1
         data["status"] = data["brands"].map(
-            lambda x: 2
-            if len(reduce(lambda acc, cur: acc + cur["events"], x, [])) > 0
-            else -1
+            lambda x: 2 if len(reduce(lambda acc, cur: acc + cur["events"], x, [])) > 0 else -1
         )  # event가 아무것도 없으면 -1
         data = data.to_dict("records")
         errors = ServiceProductSchema().validate(data, many=True)
         if errors:
             self.logger.error(f"Service Product Schema Validation Error: {len(errors)}")
-            raise RuntimeError(
-                f"Service Product Schema Validation Error: {len(errors)}"
-            )
+            raise RuntimeError(f"Service Product Schema Validation Error: {len(errors)}")
         return data
