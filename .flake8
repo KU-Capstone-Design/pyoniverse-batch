@@ -1,6 +1,6 @@
 [flake8]
 ; McCabe Complexity 최대 허용값
-max-complexity = 20
+max-complexity = 10
 ; 발생한 에러 수 및 통계 값 반환
 count = True
 statistics = True
