@@ -594,10 +594,10 @@ class ProductProcessor(ProcessorIfs):
             discounted_value = round(price["value"] / 2, 2)
         elif event == 2:
             # 2+1
-            discounted_value = round(price["value"] / 3, 2)
+            discounted_value = round(2 * price["value"] / 3, 2)
         else:
             # 3+1
-            discounted_value = round(price["value"] / 4, 2)
+            discounted_value = round(3 * price["value"] / 4, 2)
 
         # 이미 할인 가격이 있는지 확인 후 최소 가격 선택
         if price["discounted_value"]:
@@ -610,42 +610,17 @@ class ProductProcessor(ProcessorIfs):
 
     def __get_best(self, row: Series):
         default_price = row["price"]
-        best_price, best_brand, best_events = None, None, []
+        best_price, best_brand, best_events = float("+inf"), None, []
         for brand in row["brands"]:
-            for event in brand["events"]:
-                match event:
-                    case 1:  # 1+1
-                        t_price = brand["price"]["value"] / 2
-                        if best_price is None or t_price < best_price:
-                            best_price = t_price
-                            best_brand = brand["id"]
-                            best_events = brand["events"]
-                    case 2:  # 2+1
-                        t_price = brand["price"]["value"] * 2 / 3
-                        if best_price is None or t_price < best_price:
-                            best_price = t_price
-                            best_brand = brand["id"]
-                            best_events = brand["events"]
-                    case 7:  # DISCOUNT
-                        t_price = brand["price"]["discounted_value"]
-                        if best_price is None or t_price < best_price:
-                            best_price = t_price
-                            best_brand = brand["id"]
-                            best_events = brand["events"]
-                    case 8:  # 3+1
-                        t_price = brand["price"]["value"] * 3 / 4
-                        if best_price is None or t_price < best_price:
-                            best_price = t_price
-                            best_brand = brand["id"]
-                            best_events = brand["events"]
-                    case _:
-                        continue
-        if best_price is None:
+            if discounted_value := brand["price"]["discounted_value"]:
+                if discounted_value < best_price:
+                    best_price, best_brand, best_events = discounted_value, brand["id"], brand["events"]
+        if best_price == float("+inf"):
             best_price = default_price
             best_brand = row["brands"][0]["id"]
             best_events = row["brands"][0]["events"]
         return {
-            "price": round(best_price, 2),
+            "price": best_price,
             "brand": best_brand,
             "events": best_events,
         }
