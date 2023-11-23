@@ -516,6 +516,10 @@ class ProductProcessor(ProcessorIfs):
         return data
 
     def __get_largest_image(self, images: List[dict]):
+        # TODO : Default Image는 제거
+        default_images = {
+            "products/be780835fd93417525fe2304be3b8c917902348d.webp",  # seven eleven
+        }
         thumb_images = [x["thumb"] for x in images if x["thumb"] is not None]
         thumb_sizes = list(
             map(
@@ -531,12 +535,12 @@ class ProductProcessor(ProcessorIfs):
         )
         images = thumb_images + other_images
         sizes = thumb_sizes + other_sizes
-        tuples = list(zip(images, sizes))
-        if tuples:
+        tuples = filter(lambda x: "/".join(x[0].split("/")[-2:]) not in default_images, zip(images, sizes))
+        try:
             max_img = max(tuples, key=lambda x: x[1])[0]
             max_img = os.getenv("IMAGE_DOMAIN") + urlparse(max_img).path[4:]
             return max_img
-        else:
+        except ValueError:
             return None
 
     def __collect_by_brand(self, row: Series):
