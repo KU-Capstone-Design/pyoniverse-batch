@@ -632,16 +632,17 @@ class ProductProcessor(ProcessorIfs):
     def __append_histories(self, data: DataFrame, date: datetime) -> DataFrame:
         downloader = Downloader()
         previous_data = downloader.download(db_name=os.getenv("MONGO_SERVICE_DB"), rel_name=self._name, date=date)
+        # TODO : 이전 이미지 가져오기
         try:
             check = next(previous_data)
             previous_data = chain([check], previous_data)
             if "histories" in check:
                 previous_df = DataFrame(
                     previous_data,
-                    columns=["crawled_infos", "name", "brands", "histories"],
+                    columns=["crawled_infos", "name", "brands", "histories", "image"],
                 )
             else:
-                previous_df = DataFrame(previous_data, columns=["crawled_infos", "name", "brands"])
+                previous_df = DataFrame(previous_data, columns=["crawled_infos", "name", "brands", "image"])
                 previous_df["histories"] = [[]] * len(previous_df)
         except StopIteration as e:
             self.logger.info("Previous Data doesn't exist")
@@ -652,9 +653,11 @@ class ProductProcessor(ProcessorIfs):
                 columns={
                     "crawled_infos": "previous_crawled_infos",
                     "brands": "previous_brands",
+                    "image": "previous_image",
                 },
                 inplace=True,
             )
+            data["image"] = data[["image", "previous_image"]].apply(lambda x: x[1] if x[0] is None else x[0], axis=1)
             # merge
             data = data.merge(previous_df, on="name", how="left", validate="one_to_one")
             data["previous_crawled_infos"] = data["previous_crawled_infos"].map(
@@ -684,7 +687,7 @@ class ProductProcessor(ProcessorIfs):
             # Deduplicate histories
             data["histories"] = data["histories"].map(lambda x: {y["date"]: y["brands"] for y in x})
             data["histories"] = data["histories"].map(lambda x: [{"date": k, "brands": v} for k, v in x.items()])
-            data.drop(columns=["previous_brands", "previous_crawled_infos"], inplace=True)
+            data.drop(columns=["previous_brands", "previous_crawled_infos", "previous_image"], inplace=True)
             return data
 
     def _postprocess(self, data: DataFrame, date: datetime, *args, **kwargs) -> Sequence[Mapping[str, Any]]:
