@@ -657,9 +657,9 @@ class ProductProcessor(ProcessorIfs):
                 },
                 inplace=True,
             )
-            data["image"] = data[["image", "previous_image"]].apply(lambda x: x[1] if x[0] is None else x[0], axis=1)
             # merge
             data = data.merge(previous_df, on="name", how="left", validate="one_to_one")
+            data["image"] = data[["image", "previous_image"]].apply(lambda x: x["image"] or x["previous_image"], axis=1)
             data["previous_crawled_infos"] = data["previous_crawled_infos"].map(
                 lambda x: x if isinstance(x, list) else []
             )
