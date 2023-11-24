@@ -1,13 +1,13 @@
 name: Deploy Batch
 on:
   push:
-    branches: [ develop ]
+    branches: [ prod ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      STAGE: dev
+      STAGE: prod
 
     steps:
       - name: Checkout
@@ -34,18 +34,18 @@ jobs:
         run: |
           # Make .env file
           echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> .env
-          echo "MONGO_CRAWLING_DB=${{ secrets.MONGO_CRAWLING_DB_DEV }}" >> .env
-          echo "MONGO_SERVICE_DB=${{ secrets.MONGO_SERVICE_DB_DEV }}" >> .env
+          echo "MONGO_CRAWLING_DB=${{ secrets.MONGO_CRAWLING_DB_PROD }}" >> .env
+          echo "MONGO_SERVICE_DB=${{ secrets.MONGO_SERVICE_DB_PROD }}" >> .env
           echo "MONGO_CONSTANT_DB=${{ secrets.MONGO_CONSTANT_DB }}" >> .env
-          echo "IMAGE_DOMAIN=${{ secrets.IMAGE_DOMAIN_DEV }}" >> .env
+          echo "IMAGE_DOMAIN=${{ secrets.IMAGE_DOMAIN_PROD }}" >> .env
           echo "S3_BUCKET=${{ secrets.S3_TMP_BUCKET }}" >> .env
           echo "S3_BACKUP_BUCKET=${{ secrets.S3_BACKUP_BUCKET }}" >> .env
-          echo "S3_KEY=${{ secrets.S3_KEY_DEV }}" >> .env
-          echo "SLACK_QUEUE_NAME=${{ secrets.SLACK_SQS_NAME_DEV }}" >> .env
-          echo "DB_QUEUE_NAME=${{ secrets.DB_SQS_NAME_DEV }}" >> .env
+          echo "S3_KEY=${{ secrets.S3_KEY_PROD }}" >> .env
+          echo "SLACK_QUEUE_NAME=${{ secrets.SLACK_SQS_NAME_PROD }}" >> .env
+          echo "DB_QUEUE_NAME=${{ secrets.DB_SQS_NAME_PROD }}" >> .env
           echo "EVENT_SOURCE=${{ secrets.EVENT_SOURCE }}" >> .env
           echo "EVENT_DETAIL_TYPE=${{ secrets.EVENT_DETAIL_TYPE }}" >> .env
-          echo "EVENT_BUS_NAME=${{ secrets.EVENT_BUS_NAME_DEV }}" >> .env
+          echo "EVENT_BUS_NAME=${{ secrets.EVENT_BUS_NAME_PROD }}" >> .env
 
 
       - name: Test
