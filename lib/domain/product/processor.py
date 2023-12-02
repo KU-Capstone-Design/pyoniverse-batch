@@ -538,7 +538,7 @@ class ProductProcessor(ProcessorIfs):
         tuples = filter(lambda x: "/".join(x[0].split("/")[-2:]) not in default_images, zip(images, sizes))
         try:
             max_img = max(tuples, key=lambda x: x[1])[0]
-            max_img = os.getenv("IMAGE_DOMAIN") + urlparse(max_img).path[4:]
+            max_img = os.getenv("IMAGE_DOMAIN") + "/" + "/".join(urlparse(max_img).path.split("/")[2:])
             return max_img
         except ValueError:
             return None

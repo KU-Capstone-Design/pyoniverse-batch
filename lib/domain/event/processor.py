@@ -37,12 +37,11 @@ class EventProcessor(ProcessorIfs):
         # Replace Image Url
         data["image"] = data["image"].map(
             lambda x: {
-                "thumb": os.getenv("IMAGE_DOMAIN") + urlparse(x["thumb"]).path[4:]
+                "thumb": os.getenv("IMAGE_DOMAIN") + "/" + "/".join(urlparse(x["thumb"]).path.split("/")[2:])
                 if x["thumb"]
                 else None,
                 "others": [
-                    os.getenv("IMAGE_DOMAIN") + urlparse(y).path[4:]
-                    for y in x["others"]
+                    os.getenv("IMAGE_DOMAIN") + "/" + "/".join(urlparse(y).path.split("/")[2:]) for y in x["others"]
                 ],
             }
         )
@@ -54,9 +53,7 @@ class EventProcessor(ProcessorIfs):
         data["crawled_infos"] = data["crawled_infos"].map(lambda x: [x])
         return data
 
-    def _postprocess(
-        self, data: DataFrame, date: datetime, *args, **kwargs
-    ) -> Sequence[Mapping[str, Any]]:
+    def _postprocess(self, data: DataFrame, date: datetime, *args, **kwargs) -> Sequence[Mapping[str, Any]]:
         data = data[
             [
                 "brand",
