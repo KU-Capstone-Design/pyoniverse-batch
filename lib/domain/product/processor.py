@@ -549,7 +549,7 @@ class ProductProcessor(ProcessorIfs):
             brand_id = crawled_info["brand"]
             if brand_id not in brands:
                 price = row["price"][idx]
-                brand_events = [e["id"] for e in row["events"] if e["brand"] == brand_id]
+                brand_events = list({e["id"] for e in row["events"] if e["brand"] == brand_id})
                 brands[brand_id] = {
                     "id": brand_id,
                     "price": price,
