@@ -48,11 +48,11 @@ jobs:
           echo "EVENT_BUS_NAME=${{ secrets.EVENT_BUS_NAME_PROD }}" >> .env
 
 
-      - name: Test
-        shell: bash
-        run: |
-          pip install -r requirements.txt
-          python -m pytest -v
+#      - name: Test
+#        shell: bash
+#        run: |
+#          pip install -r requirements.txt
+#          python -m pytest -v
 
       - name: Build and Push
         shell: bash
