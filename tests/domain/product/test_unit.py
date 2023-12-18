@@ -40,6 +40,7 @@ def test_postprocess(env, date):
     data = processor._postprocess(data, date=date)
     # then
     assert len(data) > 0
+    breakpoint()
 
 
 def test_erase_default_image(env, date):
