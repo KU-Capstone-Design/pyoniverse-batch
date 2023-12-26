@@ -5,7 +5,7 @@ from lib.model.schema import CrawledInfoSchema
 
 class ServiceProductPriceSchema(Schema):
     value = fields.Float(required=True)
-    currency = fields.Integer(required=True)
+    currency = fields.Integer(required=True, allow_none=True)
     discounted_value = fields.Float(required=True, allow_none=True)
 
 
