@@ -658,6 +658,12 @@ class ProductProcessor(ProcessorIfs):
                 },
                 inplace=True,
             )
+            # add-hock
+            previous_df = previous_df[
+                previous_df["name"].map(
+                    lambda x: x not in {"cj)햇반소프트밀버섯야채죽(280.0g)", "cj)햇반소프트밀소고기죽(280.0g)", "cj)햇반소프트밀전복죽(280.0g)"}
+                )
+            ].copy()
             # merge
             data = data.merge(previous_df, on="name", how="left", validate="one_to_one")
             data["image"] = data[["image", "previous_image"]].apply(lambda x: x["image"] or x["previous_image"], axis=1)
